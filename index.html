@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>전국연합 학력평가 문제은행</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2433; --sub:#5b6477; --line:#dde1e8; --acc:#2456d6; --acc2:#e8eefc; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171d; --card:#1c2029; --ink:#e8ebf2; --sub:#9aa3b5; --line:#2c3240; --acc:#7da2ff; --acc2:#222c45; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:14px 20px; border-bottom:1px solid var(--line); background:var(--card); display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  header span { color:var(--sub); font-size:13px; }
+  .wrap { display:grid; grid-template-columns: 290px 1fr; gap:16px; padding:16px 20px; align-items:start; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  .filters { position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; }
+  .filters h3 { font-size:13px; margin:12px 0 6px; color:var(--sub); font-weight:600; }
+  .filters h3:first-child { margin-top:0; }
+  .chk { display:flex; gap:6px; align-items:center; font-size:13px; padding:2px 0; }
+  .chk .n { margin-left:auto; color:var(--sub); font-size:12px; }
+  .grp { font-size:12px; color:var(--sub); margin:8px 0 2px; font-weight:600; }
+  .bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  button { font:inherit; font-size:13px; padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:600; }
+  button:disabled { opacity:.5; cursor:default; }
+  input[type=text], select { font:inherit; font-size:13px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--sub); font-weight:600; position:sticky; top:0; background:var(--card); }
+  tr.sel td { background:var(--acc2); }
+  .opts { display:grid; grid-template-columns: 1fr 1fr; gap:8px 12px; font-size:13px; margin-top:10px; }
+  .opts label { display:flex; flex-direction:column; gap:3px; color:var(--sub); }
+  .opts .full { grid-column:1 / -1; }
+  #status { font-size:13px; color:var(--sub); }
+  .pill { display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px; background:var(--acc2); color:var(--acc); }
+</style>
+</head>
+<body>
+<header>
+  <h1>전국연합 학력평가 문제은행</h1>
+  <span id="meta">불러오는 중…</span>
+</header>
+<div class="wrap">
+  <aside class="card filters" id="filters"></aside>
+  <main>
+    <div class="card">
+      <div class="bar">
+        <button id="btnAll">결과 전체 선택</button>
+        <button id="btnNone">선택 해제</button>
+        <span id="count"></span>
+      </div>
+      <div class="opts">
+        <label class="full">문제지 제목<input type="text" id="optTitle" value="전국연합 학력평가 단원별 연습"></label>
+        <label class="full">쪽 아래 문구<input type="text" id="optFooter" value="우리는 알아야만 한다. 우리는 알게 될 것이다. - David Hilbert"></label>
+        <label>문제 배치<select id="optLayout"><option value="auto">혼합 (2·3점은 한 단에 2문제, 4점은 한 단에 1문제)</option><option value="full">항상 한 단에 1문제 (쪽당 2문제)</option><option value="half">가능하면 항상 한 단에 2문제 (쪽당 4문제)</option></select></label>
+        <label>해설<select id="optSol"><option value="1">미주로 포함</option><option value="0">문제만</option></select></label>
+      </div>
+      <div class="bar" style="margin-top:12px">
+        <button class="primary" id="btnMake" disabled>PDF 만들기</button>
+        <span id="status"></span>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px; overflow:auto; max-height:70vh">
+      <table>
+        <thead><tr><th></th><th>시험</th><th>구분</th><th>과목 &gt; 단원</th><th>배점</th><th>형식</th><th>문항 요지</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+<script src="js/layout.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
