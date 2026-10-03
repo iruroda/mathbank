@@ -10,7 +10,8 @@ vendor/pdf-lib.min.js      PDF 조립 라이브러리 (오프라인에서도 동
 pdf/<연도>/                원본 시험지 PDF  (예: pdf/2021/2021_1학년_6월_문제.pdf, ..._해설.pdf)
 data/problems.json         문제별 위치(좌표)·단원·성취기준·배점·정답  ← 웹앱이 읽는 데이터
 data/classification_2021_06.xlsx, data/classification/*.json  단원 분류 원본 (시험 1회 = 파일 1개)
-data/classification_2021_all.xlsx  2021년 전체 분류표 (tools/make_xlsx.py 로 생성)
+data/classification_all.xlsx  전체 분류표 (tools/make_xlsx.py 로 생성)
+data/detect/<시험>.json    문제·해설 영역 검출 결과 캐시 (검출 코드를 고쳤을 때만 build_all.py --redetect)
 data/standards_codes.json  성취기준 코드 → 과목·단원·문장 사전
 data/answers_*.json        정답표 입력본
 tools/                     좌표 자동 검출·데이터 생성 스크립트 (Python)
@@ -27,10 +28,11 @@ GitHub Pages 로 배포하면 그대로 동작합니다.
 ## 새 시험 추가 절차
 1. `pdf/<연도>/` 에 `<연도>_<n>학년_<월>월_문제.pdf`, `..._해설.pdf` 를 넣는다.
 2. 단원 분류 json(`data/classification/`)과 정답 json(`data/answers_*.json`)을 준비한다.
-3. `tools/build_all.py` 의 `EXAMS` 목록에 시험을 추가하고 `python tools/build_all.py` 로 `data/problems.json` 을 다시 만든다 (문제·해설 영역 자동 검출).
+3. `tools/build_all.py` 의 `EXAMS` 목록에 시험을 추가하고 `python tools/build_all.py` 로 (처음 보는 시험은 자동으로 검출해 캐시에 저장) `data/problems.json` 을 다시 만든다 (문제·해설 영역 자동 검출).
 4. `tools/overlay.py` 로 잘린 영역을 눈으로 확인한다. 전체 분류표는 `python tools/make_xlsx.py` 로 만든다.
 
 ## 알려진 한계
 - 정답은 해설 정답표를 눈으로 옮기고 해설 PDF 텍스트와 대조한 값입니다.
 - 2021학년도 3학년 7월 해설은 새 파일로 교체되어 확률과 통계·미적분·기하 해설이 모두 포함됩니다.
+- 2022학년도 3학년 6·9·11월 시험은 평가원 모의평가·수능(EBS 해설) 형식입니다.
 - 저작권: 시험지 저작권은 출제 기관에 있으므로 저장소를 비공개로 두거나 교내 사용 범위를 지키세요.

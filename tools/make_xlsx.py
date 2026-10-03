@@ -40,10 +40,10 @@ for r, row in enumerate(ws.iter_rows(min_row=1, max_row=ws.max_row), 1):
             c.alignment = Alignment(horizontal="left" if c.column >= 11 else "center", vertical="top", wrap_text=True)
 ws.freeze_panes = "C2"; ws.auto_filter.ref = f"A1:M{ws.max_row}"
 
-ws2 = wb.create_sheet("단원별 보기"); ws2.append(["과목", "단원", "문항 수", "문항 목록 (학년 > 시행월 > 문제번호 순)"])
+ws2 = wb.create_sheet("단원별 보기"); ws2.append(["과목", "단원", "문항 수", "문항 목록 (연도 > 학년 > 시행월 > 문제번호 순)"])
 by = defaultdict(list)
 for p in probs:
-    lab = f"{p['grade']}학년 {p['month']}월 {p['n']}번" + (f"({p['sec']})" if p["grade"] == 3 else "")
+    lab = f"{p['year']} {p['grade']}학년 {p['month']}월 {p['n']}번" + (f"({p['sec']})" if p["grade"] == 3 else "")
     by[(p["subject"], p["unit"])].append(lab)
 order = [tuple(u) for u in d["units"]]
 for k in by:
@@ -62,5 +62,5 @@ for r, row in enumerate(ws2.iter_rows(min_row=1, max_row=ws2.max_row), 1):
             c.alignment = Alignment(horizontal="left" if c.column == 4 else "center", vertical="top", wrap_text=True)
             if r == ws2.max_row: c.font = Font(bold=True)
 ws2.freeze_panes = "A2"
-out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "data/classification_2021_all.xlsx")
+out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "data/classification_all.xlsx")
 wb.save(out); print(out, len(probs), "rows")

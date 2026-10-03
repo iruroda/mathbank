@@ -46,7 +46,7 @@ def detect(path, elective=False):
             g = page_geometry(p)
             if not g: continue
             div = g["div"]
-            cols = [(div-336, div-4), (div+4, div+336)]
+            cols = [(max(div-336, 40), div-4), (div+4, min(div+336, p.width-20))]   # A4(폭 595)도 지원
             words = fix_words(p.extract_words(keep_blank_chars=False))
             # 표시 라벨 (단답형, 확인 사항 등) 위치: 이 아래 객체는 이전 문항에 포함시키지 않는다
             labels = []
@@ -99,14 +99,27 @@ def detect(path, elective=False):
     return dict(width=W, height=H, items=out)
 
 def _fix_points(items):
-    """배점 숫자가 수식 폰트(사설영역 문자)인 파일은, 가장 작은 코드 = 2점(1·2번은 항상 2점)으로 보고 연속 숫자로 환산."""
+    """배점 숫자가 수식 폰트(사설영역 문자)인 파일은 코드 순서대로 연속 숫자로 환산한다.
+       기준값 b(가장 작은 PUA 코드의 점수)는 2·3·4 중에서, 같은 구역·같은 형식 안에서 번호가 커질수록 배점이 줄지 않는 값으로 고른다.
+       (일반 숫자와 PUA 숫자가 한 시험에 섞여 있는 파일도 처리)"""
     codes = [it["pcode"] for it in items if it.get("pcode")]
     pu = sorted({ord(c) for c in codes if not c.isdigit()})
+    def val(c, b): return None if c is None else int(c) if c.isdigit() else b + ord(c) - pu[0]
+    best = 2
+    if pu:
+        for b in (2, 3, 4):
+            vs = [val(it.get("pcode"), b) for it in items]
+            if any(v is not None and v not in (2, 3, 4) for v in vs): continue
+            ok = True; prev = {}
+            for it, v in zip(items, vs):
+                k = (it["sec"], it["type"] if "type" in it else "")
+                if v is None: continue
+                if k in prev and v < prev[k]: ok = False; break
+                prev[k] = v
+            if ok: best = b; break
     for it in items:
         c = it.pop("pcode", None)
-        if c is None: it["points"] = None
-        elif c.isdigit(): it["points"] = int(c)
-        else: it["points"] = 2 + ord(c) - pu[0]
+        it["points"] = val(c, best)
 
 def attach_meta(path, res):
     """배점·형식(선택형/단답형)을 문제 텍스트에서 읽는다."""

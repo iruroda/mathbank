@@ -18,7 +18,7 @@ def page_frame(p):
     if vtops: top = max(top, min(vtops) - 2)       # 단 구분선이 시작하는 곳 아래부터가 본문
     bottom = min([h["top"] for h in bot_rules], default=p.height-50) - 2
     vbots = [o["bottom"] for o in p.lines + p.rects if o["bottom"]-o["top"] > 300 and o["x1"]-o["x0"] < 3]
-    if vbots and not bot_rules and p.height > 1000: bottom = min(bottom, max(vbots) + 2)   # 단 구분선이 끝나는 곳까지가 본문(쪽번호 제외)
+    if vbots and not bot_rules: bottom = min(bottom, max(vbots) + (2 if p.height > 1000 else 12))   # 단 구분선이 끝나는 곳까지가 본문(쪽번호 제외)
     return x0, x1, top, bottom
 
 def occupancy_columns(pdf, x0, x1, top, bottom):
@@ -153,7 +153,7 @@ def detect(path, elective=False):
             if e[3] != "mark": continue
             n = e[4]
             if n is None: n = last+1; e = e[:4] + (n,) + e[5:]
-            if elective and n == 23 and last in (22, 30): sec_i = 1 if last == 22 else sec_i+1
+            if elective and n == 23 and last in (0, 22, 30): sec_i = 1 if last in (0, 22) else sec_i+1   # last==0: 선택과목 해설만 실린 파일
             elif n == last+1: pass
             else: continue
             marks.append(e); last = n; marks[-1] = e + (SECTIONS[sec_i],)
@@ -194,7 +194,7 @@ def detect(path, elective=False):
             if boxes: boxes[0]["num"] = dict(x0=nb[0], top=nb[1], x1=nb[2], bottom=nb[3])
             items.append(dict(n=mk[4], sec=mk[6], boxes=boxes))
         # 선택과목이 하나만 실린 해설(예: 기하만)이면 쪽 글에서 과목명을 찾아 붙인다
-        if elective and {i["sec"] for i in items} == {"공통", "확률과 통계"}:
+        if elective and items and {i["sec"] for i in items} <= {"공통", "확률과 통계"}:
             names = set()
             for p in pdf.pages:
                 names |= set(re.findall(r"(확률과 통계|미적분|기하)\s*(?:정답|해설)", p.extract_text() or ""))

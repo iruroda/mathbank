@@ -14,6 +14,8 @@ ISU = dict(subject="이산수학", unit="선택과 배열",
 EXAMS = [(2021, 1, 3), (2021, 1, 6), (2021, 1, 9), (2021, 1, 11),
          (2021, 2, 3), (2021, 2, 6), (2021, 2, 9), (2021, 2, 11),
          (2021, 3, 3), (2021, 3, 4), (2021, 3, 6), (2021, 3, 7), (2021, 3, 9), (2021, 3, 10), (2021, 3, 11)]
+EXAMS += [(2022, g, m) for g in (1, 2) for m in (3, 6, 9, 11)] + [(2022, 3, m) for m in (3, 4, 6, 7, 9, 10, 11)]
+REDETECT = "--redetect" in sys.argv     # 검출 결과는 data/detect/ 에 저장해 두고 재사용 (검출 코드를 고쳤을 때만 --redetect)
 
 def r1(v): return round(float(v), 1)
 def box(b):
@@ -52,9 +54,17 @@ def main():
     for year, g, month in EXAMS:
         eid = f"{year}-{g}-{month:02d}"
         qf = f"pdf/{year}/{year}_{g}학년_{month}월_문제.pdf"; af = f"pdf/{year}/{year}_{g}학년_{month}월_해설.pdf"
-        q = detect_q.detect(os.path.join(ROOT, qf), elective=(g == 3)); detect_q.attach_meta(os.path.join(ROOT, qf), q)
-        a = detect_a.detect(os.path.join(ROOT, af), elective=(g == 3))
-        cls = x6 if month == 6 else load_json_class(year, g, month, codes)
+        cp = os.path.join(ROOT, f"data/detect/{eid}.json")
+        if os.path.exists(cp) and not REDETECT:
+            q, a = json.load(open(cp, encoding="utf-8"))
+        else:
+            q = detect_q.detect(os.path.join(ROOT, qf), elective=(g == 3)); detect_q.attach_meta(os.path.join(ROOT, qf), q)
+            a = detect_a.detect(os.path.join(ROOT, af), elective=(g == 3))
+            os.makedirs(os.path.dirname(cp), exist_ok=True)
+            json.dump([q, a], open(cp, "w", encoding="utf-8"), ensure_ascii=False)
+        a["columns"] = [tuple(c) for c in a["columns"]]
+        if "--detect-only" in sys.argv: print(eid, "검출", len(q["items"]), len(a["items"])); continue
+        cls = x6 if (year, month) == (2021, 6) else load_json_class(year, g, month, codes)
         exams[eid] = dict(year=year, grade=g, month=month, q=dict(file=qf, w=r1(q["width"]), h=r1(q["height"])),
                           a=dict(file=af, w=r1(a["width"]), h=r1(a["height"]), colw=r1(max(c[1] - c[0] for c in a["columns"]))))
         amap = {(i["sec"], i["n"]): i for i in a["items"]}
@@ -70,6 +80,7 @@ def main():
                 points=it["points"], type=it["type"], answer=answer,
                 q=[box(it)], a=[box(b) for b in ai["boxes"]] if ai else []))
         print(eid, len(q["items"]), "문제", len(a["items"]), "해설")
+    if "--detect-only" in sys.argv: return
     units, seen = [], set()      # 성취기준 파일의 순서대로 (과목, 단원) 목록 -> 화면 정렬용
     for c in codes.values():
         k = (c["subject"], c["unit"])
