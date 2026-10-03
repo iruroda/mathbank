@@ -144,7 +144,7 @@ def detect(path, elective=False):
                 for tx, tt in tabs:       # 선택과목 정답표 = 구역 제목 (이전 문항 해설의 끝)
                     if cl-2 <= tx < cr and top-8 <= tt < bottom: events.append((pi, ci, max(tt-32, top), "term", 0))
                 for n, x0_, t_, x1_, b_ in cm:
-                    if cl-2 <= x0_ < cr and x0_ <= cl+60 and top-8 <= t_ < bottom:
+                    if cl-2 <= x0_ < cr and x0_ <= cl+60 and top-(24 if pi == 0 else 8) <= t_ < bottom:
                         events.append((pi, ci, t_, "mark", n, (x0_, t_, x1_, b_)))
         events.sort(key=lambda e: (e[0], e[1], e[2]))
         # 번호 순서 확인 및 섹션 부여

@@ -55,8 +55,8 @@
       y0 += 2;
       const s = Math.min(G.colW / bw, (slotH - BAR_H - PAD) / bh, 1);
       // 라벨: 4칸(번호 | 출제연월 | 학년 | 문제번호), 칸마다 왼쪽 정렬
-      const sec = SEC_LABEL[p.sec] || '';
-      const cells = [pad4(i), `${p.year}년 ${p.month}월`, `${p.grade}학년`, `${p.n}번`];
+      const sec = SEC_LABEL[p.sec] || (p.also ? '(=' + p.also.replace(/형 (\d+)번/, '$1') + ')' : '');
+      const cells = [pad4(i), `${p.year}년 ${p.month}월`, `${p.grade}학년${p.form ? '(' + p.form + ')' : ''}`, `${p.n}번`];
       cells.forEach((t, k) => {
         pg.ops.push({ t: 'text', s: t, x: x + k * cell + 4, y: y0 + 11, size: 9.5, bold: true, align: 'left', maxW: cell - 6 });
         if (k > 0) pg.ops.push({ t: 'line', x1: x + k * cell, y1: y0 + 2, x2: x + k * cell, y2: y0 + 14, w: 0.5 });

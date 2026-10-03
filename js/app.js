@@ -7,6 +7,7 @@
     ['year', '연도', (p) => p.year + '년'],
     ['grade', '학년', (p) => p.grade + '학년'],
     ['month', '시행월', (p) => p.month + '월'],
+    ['form', '형(가/나)', (p) => (p.form ? p.form + '형' : '해당 없음')],
     ['sec', '구분', (p) => p.sec],
     ['subject', '과목', (p) => p.subject],
     ['unit', '단원', (p) => p.subject + '|' + p.unit],
@@ -15,7 +16,7 @@
   ];
   let DATA = null, ALL = [], filters = {}, selected = new Set();
 
-  const cmp = (a, b) => a.year - b.year || a.grade - b.grade || a.month - b.month || SEC_RANK[a.sec] - SEC_RANK[b.sec] || a.n - b.n;
+  const cmp = (a, b) => a.year - b.year || a.grade - b.grade || a.month - b.month || (a.form || '').localeCompare(b.form || '', 'ko') || SEC_RANK[a.sec] - SEC_RANK[b.sec] || a.n - b.n;
 
   function matches(p, skip) {
     for (const [k, , f] of FIELDS) {
@@ -70,7 +71,7 @@
       const td0 = document.createElement('td'); const c = document.createElement('input'); c.type = 'checkbox'; c.checked = selected.has(p.id);
       c.onchange = () => { c.checked ? selected.add(p.id) : selected.delete(p.id); tr.className = c.checked ? 'sel' : ''; updateCount(); };
       td0.appendChild(c); tr.appendChild(td0);
-      const cells = [`${p.year}년 ${p.month}월 ${p.grade}학년 ${p.n}번`, p.sec === '공통' ? '공통' : p.sec, `${p.subject} > ${p.unit}`, p.points == null ? '-' : p.points + '점', p.type, p.summary];
+      const cells = [`${p.year}년 ${p.month}월 ${p.grade}학년${p.form ? '(' + p.form + '형)' : ''} ${p.n}번${p.also ? ' (=' + p.also + ')' : ''}`, p.sec === '공통' ? '공통' : p.sec, `${p.subject} > ${p.unit}`, p.points == null ? '-' : p.points + '점', p.type, p.summary];
       cells.forEach((t) => { const td = document.createElement('td'); td.textContent = t; tr.appendChild(td); });
       tr.onclick = (e) => { if (e.target !== c) { c.checked = !c.checked; c.onchange(); } };
       tb.appendChild(tr);

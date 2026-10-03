@@ -26,14 +26,19 @@ def dd(t):
     return t[0::2] if len(t) >= 2 and len(t) % 2 == 0 and t[0::2] == t[1::2] else t
 
 def fix_words(ws):
-    """'29' + '.' 처럼 쪼개진 문항번호 토큰을 합친다."""
+    """'29' + '.' 또는 '1' + '9.' 처럼 쪼개진 문항번호 토큰을 합친다."""
     out = []; used = set()
     for i, w in enumerate(ws):
         if i in used: continue
         if re.fullmatch(r'\d{1,2}', w["text"]):
+            merged = False
             for j, n in enumerate(ws):
-                if j != i and j not in used and n["text"] == "." and abs(n["top"]-w["top"]) < 6 and -4 <= n["x0"]-w["x1"] < 6:
-                    w = dict(w, text=w["text"]+".", x1=n["x1"]); used.add(j); break
+                if j != i and j not in used and n["text"] == "." and abs(n["top"]-w["top"]) < 6 and -10 <= n["x0"]-w["x1"] < 6:
+                    w = dict(w, text=w["text"]+".", x1=n["x1"]); used.add(j); merged = True; break
+            if not merged and len(w["text"]) == 1:
+                for j, n in enumerate(ws):
+                    if j != i and j not in used and re.fullmatch(r'\d\.', n["text"]) and abs(n["top"]-w["top"]) < 4 and -9 <= n["x0"]-w["x1"] < 8:
+                        w = dict(w, text=w["text"]+n["text"], x1=n["x1"]); used.add(j); break
         out.append(w)
     return out
 
