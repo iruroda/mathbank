@@ -11,7 +11,8 @@
   body { margin:0; font-family: "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif; background:var(--bg); color:var(--ink); }
   .page { max-width:760px; margin:0 auto; padding:0 12px 24px; }          /* 태블릿·모바일 세로 기준 폭 */
   header { padding:12px 0 8px; display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; }
-  header h1 { font-size:22px; margin:0; letter-spacing:.08em; font-weight:800; }
+  header > * { margin-bottom:4px; }
+  header h1 { font-size:22px; margin:0 0 4px; letter-spacing:.08em; font-weight:800; }
   header .meta { color:var(--sub); font-size:12px; }
   header .spacer { flex:1; }
   button { font:inherit; font-size:13px; padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
@@ -23,7 +24,7 @@
   .modes button { padding:16px 10px; font-size:16px; font-weight:700; border-radius:12px; }
   .modes button.on { background:var(--acc); color:#fff; border-color:var(--acc); }
   .wrap { display:flex; flex-direction:column; gap:12px; }
-  .wrap[hidden], #main[hidden], .side[hidden] { display:none; }
+  .modes[hidden], .wrap[hidden], #main[hidden], .side[hidden] { display:none; }
   @media (max-width: 640px) { .page { padding:0 8px 20px; } }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
   .side { display:flex; flex-direction:column; padding:0; overflow:hidden; }
@@ -33,10 +34,29 @@
   .grp { font-size:12px; color:var(--sub); margin:8px 0 4px; font-weight:600; }
   .chips { display:flex; flex-wrap:wrap; gap:6px; }
   .chip { display:inline-flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 10px; font-size:13px; border-radius:8px; }
-  .chip .n { color:var(--sub); font-size:12px; }
+  .chip .n { color:var(--sub); font-size:11px; line-height:1; padding:3px 7px; border:1px solid currentColor; border-radius:999px; }
   .chip.on { background:var(--acc); border-color:var(--acc); color:#fff; }
-  .chip.on .n { color:#dfe8ff; }
+  .chip.on .n { color:#fff; }
+  .sidehead { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--line); }
+  .sidehead h2 { margin:0; font-size:16px; }
+  .sidehead button { width:36px; height:32px; padding:0; display:flex; align-items:center; justify-content:center; }
+  .sidehead svg { width:20px; height:20px; }
   .chip.zero { opacity:.4; }
+  .morebar { display:flex; align-items:center; justify-content:center; gap:8px; border-top:1px solid var(--line); height:28px; position:relative; }
+  .morebar button { border:none; background:none; padding:0 14px; height:24px; display:flex; align-items:center; color:var(--sub); }
+  .morebar svg { width:28px; height:28px; transition:transform .15s; }
+  .morebar button.open svg { transform:rotate(180deg); }
+  #moreCnt { position:absolute; right:12px; font-size:11px; color:var(--acc); }
+  .filters.extras { padding-top:0; }
+  .filters.extras[hidden] { display:none; }
+  .busy { position:fixed; inset:0; z-index:80; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(246,247,249,.78); backdrop-filter:blur(3px); }
+  @media (prefers-color-scheme: dark) { .busy { background:rgba(20,23,29,.78); } }
+  .busy.show { display:flex; }
+  .busy svg { width:112px; height:112px; }
+  .busy .ringbg { stroke:var(--line); } .busy #ringFg { stroke:var(--acc); transition:stroke-dashoffset .2s; }
+  .busy #ringTxt { fill:var(--ink); font-size:20px; font-weight:700; }
+  #busyMsg { font-size:15px; font-weight:600; }
+  .busy.err #ringFg, .busy.err svg { display:none; } .busy.err #busyMsg { color:#c0392b; padding:0 20px; text-align:center; }
   .sidefoot { border-top:1px solid var(--line); padding:10px 12px; display:grid; grid-template-columns:1fr 1fr; gap:8px; background:var(--card); }
   .sidefoot button { width:100%; padding:10px; }
   .sidefoot #status { grid-column:1 / -1; }
@@ -48,11 +68,23 @@
   .sum .rowx { display:flex; align-items:center; gap:8px; margin:6px 0; flex-wrap:wrap; }
   .sum .rowx b { font-size:12px; color:var(--sub); min-width:64px; font-weight:600; }
   .sum .linkbtn { border:none; background:none; color:var(--acc); padding:4px 0; font-size:12px; }
-  .listhead { display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--sub); margin-bottom:6px; }
+  .listhead { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--sub); margin-bottom:6px; }
+  .listhead .all { display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer; color:var(--ink); }
+  .listhead .search { flex:1; min-width:0; display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:8px; padding:0 4px 0 8px; background:var(--card); }
+  .listhead .search:focus-within { border-color:var(--acc); }
+  .listhead .search svg { width:16px; height:16px; flex:none; color:var(--sub); }
+  .listhead .search input { flex:1; min-width:0; border:none; outline:none; background:none; color:var(--ink); font:inherit; font-size:14px; padding:7px 0; }
+  .listhead .search button { border:none; background:none; padding:4px 6px; color:var(--sub); font-size:13px; visibility:hidden; }
+  .listhead .cnt { white-space:nowrap; }
   .list { max-height:70vh; overflow:auto; }
-  .item { display:flex; gap:10px; padding:9px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .item { display:flex; align-items:center; gap:8px; padding:6px 4px; border-bottom:1px solid var(--line); cursor:pointer; min-width:0; }
+  .item .box { display:flex; align-items:center; gap:8px; min-width:0; flex:1; white-space:nowrap; }
+  .item .box > div { margin:0; overflow:hidden; text-overflow:ellipsis; }
+  .item .t { flex:none; }
+  .item .m { flex:0 1 auto; }
+  .item .s { flex:1 1 0; }
   .item:last-child { border-bottom:none; }
-  .item input { margin-top:3px; flex:none; }
+  .item input { flex:none; }
   .item .t { font-size:13px; font-weight:600; }
   .item .t small { font-weight:400; color:var(--sub); }
   .item .m { font-size:12px; color:var(--sub); margin-top:2px; }
@@ -66,7 +98,7 @@
   .modal .x { position:absolute; top:10px; right:10px; width:32px; height:32px; padding:0; font-size:18px; line-height:1; border:none; background:none; color:var(--sub); }
   .modal label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--sub); margin-bottom:10px; }
   .modal input[type=text], .modal select { font:inherit; font-size:14px; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); width:100%; }
-  .modal .btns { display:flex; justify-content:flex-start; gap:8px; margin-top:6px; }
+  .modal .btns { display:flex; justify-content:center; gap:8px; margin-top:6px; }
   .modal .btns button { min-width:76px; padding:9px 14px; }
 </style>
 </head>
@@ -78,15 +110,18 @@
     <span class="spacer"></span>
     <button id="btnForm">양식 편집</button>
   </header>
-  <div class="modes">
-    <button id="modeTime">출제 시기별</button>
-    <button id="modeUnit">단원별</button>
+  <div class="modes" id="modes">
+    <button id="modeTime">시행 연월로 찾기</button>
+    <button id="modeUnit">과목/단원으로 찾기</button>
   </div>
   <div class="wrap" id="wrap" hidden>
     <aside class="card side" id="side" hidden>
+      <div class="sidehead"><h2 id="sideTitle"></h2><button id="btnBack" aria-label="처음으로" title="처음으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3 10l6 6"/><path d="M3 10h12a5 5 0 0 1 0 10H7"/></svg></button></div>
       <div class="filters" id="filters"></div>
+      <div class="morebar"><button id="btnMore" aria-label="배점, 형식 더 보기" title="배점, 형식"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 7 6-7z"/></svg></button><span id="moreCnt"></span></div>
+      <div class="filters extras" id="extras" hidden></div>
       <div class="sidefoot">
-        <button id="btnDetail">세부 설정</button>
+        <button id="btnDetail">문항 목록 열기</button>
         <button class="primary" id="btnMake" disabled>PDF 만들기</button>
         <div id="status"></div>
       </div>
@@ -95,6 +130,7 @@
   </div>
 </div>
 
+<div class="busy" id="busy"><svg viewBox="0 0 100 100"><circle class="ringbg" cx="50" cy="50" r="42" fill="none" stroke-width="9"/><circle id="ringFg" cx="50" cy="50" r="42" fill="none" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.894" stroke-dashoffset="263.894" transform="rotate(-90 50 50)"/><text id="ringTxt" x="50" y="57" text-anchor="middle">0%</text></svg><div id="busyMsg">PDF 생성중입니다</div></div>
 <div class="overlay" id="overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
     <button class="x" id="mX" aria-label="닫기">✕</button>
