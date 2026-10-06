@@ -14,7 +14,7 @@
   const pad4 = (i) => String(i + 1).padStart(4, '0');
 
   function buildPlan(problems, exams, opt) {
-    opt = Object.assign({ title: '전국연합 학력평가 단원별 연습', footer: '', layout: 'auto', solutions: true, grid: true, solCap: 1.35 }, opt || {});
+    opt = Object.assign({ title: '전국연합 및 모의평가 기출 연습문제', footer: '', layout: 'auto', solutions: true, answersOnly: false, grid: true, solCap: 1.35 }, opt || {});
     const pages = [];
     let pageNo = 0;
     function newPage() {
@@ -101,7 +101,7 @@
         y += 8;
       }
 
-      problems.forEach((p, i) => {
+      if (!opt.answersOnly) problems.forEach((p, i) => {
         const ea = exams[p.exam].a;
         const HDR = 15;
         const colH = G.bottom - G.top;

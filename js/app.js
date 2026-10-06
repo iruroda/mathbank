@@ -14,8 +14,8 @@
     ['points', '배점', (p) => (p.points == null ? '-' : p.points + '점'), 'unit'],
     ['type', '형식', (p) => p.type, 'unit'],
   ];
-  let DATA = null, ALL = [], filters = {}, excluded = new Set(), mode = 'time', detail = false;
-  const opts = { title: '전국연합 학력평가 단원별 연습', footer: '우리는 알아야만 한다. 우리는 알게 될 것이다. - David Hilbert', layout: 'auto', sol: '1' };
+  let DATA = null, ALL = [], filters = {}, excluded = new Set(), mode = null, detail = false;
+  const opts = { title: '전국연합 및 모의평가 기출 연습문제', footer: '우리는 알아야만 한다. 우리는 알게 될 것이다. - David Hilbert', layout: 'auto', sol: '1' };
 
   const cmp = (a, b) => a.year - b.year || a.grade - b.grade || a.month - b.month || (a.form || '').localeCompare(b.form || '', 'ko') || SEC_RANK[a.sec] - SEC_RANK[b.sec] || a.n - b.n;
 
@@ -33,6 +33,7 @@
 
   function renderFilters() {
     const box = $('filters'); box.innerHTML = '';
+    if (!mode) return;
     FIELDS.filter((f) => f[3] === mode).forEach(([k, label, f]) => {
       const h = document.createElement('h3'); h.textContent = label; box.appendChild(h);
       const counts = new Map();
@@ -70,32 +71,8 @@
 
   function renderMain() {
     const m = $('main'); m.innerHTML = '';
-    if (!detail) {                                          // 조건 요약
-      const d = document.createElement('div'); d.className = 'sum';
-      d.innerHTML = '<h3>선택한 조건</h3>';
-      if (!activeCount()) {
-        const t = document.createElement('div'); t.className = 'hint';
-        t.innerHTML = '왼쪽 메뉴에서 조건을 골라보세요.<br>출제 시기별과 단원별 조건은 함께 적용돼요.<br>조건을 고른 뒤 <b>PDF 만들기</b>를 누르면 조건에 맞는 문제로 문제지가 만들어지고, <b>세부 설정</b>에서는 문제를 하나씩 빼거나 넣을 수 있어요.';
-        d.appendChild(t);
-      } else {
-        FIELDS.forEach(([k, label, f]) => {
-          const st = filters[k]; if (!st || !st.size) return;
-          const r = document.createElement('div'); r.className = 'rowx';
-          const b = document.createElement('b'); b.textContent = label; r.appendChild(b);
-          [...st].forEach((v) => {
-            const c = document.createElement('button'); c.className = 'chip on'; c.type = 'button';
-            c.textContent = (k === 'unit' ? v.split('|')[1] : v) + '  ✕';
-            c.onclick = () => { st.delete(v); refresh(); };
-            r.appendChild(c);
-          });
-          d.appendChild(r);
-        });
-        const reset = document.createElement('button'); reset.className = 'linkbtn'; reset.textContent = '조건 모두 해제';
-        reset.onclick = () => { filters = {}; refresh(); };
-        d.appendChild(reset);
-      }
-      m.appendChild(d); return;
-    }
+    if (!detail) { $('main').hidden = true; return; }
+    $('main').hidden = false;
     const vis = visible();                                  // 세부 설정: 문제 목록
     const head = document.createElement('div'); head.className = 'listhead';
     head.innerHTML = '<span>문제 목록 · 체크된 문제가 PDF에 들어가요</span><span>' + picked().length + ' / ' + vis.length + '</span>';
@@ -122,11 +99,17 @@
     $('btnMake').disabled = !activeCount() || picked().length === 0;
     $('btnDetail').className = detail ? 'on' : '';
     $('btnDetail').textContent = detail ? '세부 설정 닫기' : '세부 설정';
-    $('modeTime').className = mode === 'time' ? 'on' : ''; $('modeUnit').className = mode === 'unit' ? 'on' : '';
+    ['time', 'unit'].forEach((m) => {
+      const n = FIELDS.filter((f) => f[3] === m).reduce((s, f) => s + (filters[f[0]] ? filters[f[0]].size : 0), 0);
+      const b = $(m === 'time' ? 'modeTime' : 'modeUnit'); b.className = mode === m ? 'on' : '';
+      b.textContent = m === 'time' ? '출제 시기별' : '단원별';
+      if (n) { const s = document.createElement('span'); s.className = 'bd'; s.textContent = '(' + n + ')'; b.appendChild(s); }
+    });
+    $('wrap').hidden = !mode; $('side').hidden = !mode;
     if (!$('status').dataset.busy) $('status').textContent = activeCount() ? '' : '조건을 먼저 선택하세요';
   }
   function refresh() { renderFilters(); renderMain(); updateButtons(); }
-  function setMode(m) { mode = m; detail = false; refresh(); }
+  function setMode(m) { if (mode === m) { mode = null; detail = false; } else mode = m; refresh(); }
 
   /* ---------- 양식 편집 팝업 ---------- */
   function openForm() {
@@ -233,7 +216,7 @@
       await ensurePdfLib();
       const list = picked().sort(cmp);
       const plan = Layout.buildPlan(list, DATA.exams, {
-        title: opts.title, footer: opts.footer, layout: opts.layout, solutions: opts.sol === '1',
+        title: opts.title, footer: opts.footer, layout: opts.layout, solutions: opts.sol !== '0', answersOnly: opts.sol === '2',
       });
       const bytes = await renderPlan(plan, (d, n) => { $('status').textContent = `만드는 중… ${d}/${n}쪽`; });
       const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
