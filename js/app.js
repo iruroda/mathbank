@@ -56,52 +56,83 @@
     form: () => inc('grade', '3학년') && inc('year', '2020년'),
     sec: () => inc('grade', '3학년') && (inc('year', '2021년') || inc('year', '2022년')),
   };
+  const groupTimers = {};
+  let yearPreset = null;                     // null | 'all' | 5 | 3  (전체 / 최근 5개년 / 최근 3개년은 서로 겹쳐 선택되지 않는다)
   function renderFilters() {
-    const box = $('filters'); box.innerHTML = '';
-    if (!mode) { $('extras').innerHTML = ''; return; }
+    const box = $('filters');
+    if (!mode) { box.innerHTML = ''; $('extras').innerHTML = ''; return; }
     for (const k of Object.keys(GATE)) if (!GATE[k]()) { delete filters[k]; allOn.delete(k); }   // 숨겨지는 조건은 해제
-    renderGroups(box, modeKeys(mode));
-    if (moreOpen) { $('extras').innerHTML = ''; ['points', 'type'].forEach((k) => { const d = document.createElement('div'); renderGroups(d, [k]); $('extras').appendChild(d); }); }   // 닫히는 동안에는 내용을 그대로 둔다
+    // 묶음마다 고정된 래퍼를 두고 열고 닫는 애니메이션을 준다 (닫히는 동안 내용은 그대로 둔다)
+    if (box.dataset.mode !== mode) { box.innerHTML = ''; box.dataset.mode = mode; }
+    modeKeys(mode).forEach((k) => {
+      let w = box.querySelector('[data-k="' + k + '"]');
+      const show = !(GATE[k] && !GATE[k]());
+      clearTimeout(groupTimers[k]);
+      if (!w) {
+        w = document.createElement('div'); w.className = 'collapse'; w.dataset.k = k;
+        const inn = document.createElement('div'); inn.className = 'collapse-in'; w.appendChild(inn); box.appendChild(w);
+        if (show) w.classList.add('open');          // 처음부터 열린 채로 만들어 움직임이 없게 한다
+        w._fresh = true;
+      }
+      const inn = w.firstChild;
+      if (show) {
+        inn.innerHTML = ''; inn.appendChild(buildGroup(k));
+        if (!w.classList.contains('open')) { void w.offsetWidth; w.classList.add('open'); }
+      } else if (w.classList.contains('open')) {
+        w.classList.remove('open');
+        groupTimers[k] = setTimeout(() => { if (!w.classList.contains('open')) inn.innerHTML = ''; }, 360);
+      }
+    });
+    if (moreOpen) { $('extras').innerHTML = ''; ['points', 'type'].forEach((k) => { const d = document.createElement('div'); d.appendChild(buildGroup(k)); $('extras').appendChild(d); }); }   // 닫히는 동안에는 내용을 그대로 둔다
   }
   const sameSet = (x, y) => x.size === y.size && [...x].every((v) => y.has(v));
-  function renderGroups(box, fkeys) {
+  function buildGroup(k) {
     const UO = (DATA.units || []).map((u) => u[0] + '|' + u[1]);
     const rank = (s, u) => { const i = UO.indexOf(s + '|' + u); return i < 0 ? 999 : i; };
-    fkeys.forEach((k) => {
-      if (GATE[k] && !GATE[k]()) return;
-      let label, f, keys;
-      if (k.startsWith('u:')) {
-        const s = k.slice(2); label = s; f = (p) => p.unit;
-        keys = [...new Set(ALL.filter((p) => p.subject === s).map((p) => p.unit))].sort((x, y) => rank(s, x) - rank(s, y));
-      } else {
-        const fd = fieldOf(k); label = fd[1]; f = fd[2];
-        keys = [...new Set(ALL.map(f))].filter((v) => !(k === 'form' && v === '해당 없음'));
-        if (k === 'subject') keys.sort((x, y) => DISP_ORDER.indexOf(x) - DISP_ORDER.indexOf(y));
-        else if (k === 'type') keys.sort((x, y) => TYPE_ORDER.indexOf(x) - TYPE_ORDER.indexOf(y));
-        else if (k === 'sec') keys.sort((x, y) => SEC_RANK[x] - SEC_RANK[y]);
-        else keys.sort((x, y) => String(x).localeCompare(String(y), 'ko', { numeric: true }));
-      }
-      const h = document.createElement('h3'); const hl = document.createElement('span'); hl.textContent = label; h.appendChild(hl);
-      const pill = (text, on, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'allbtn' + (on ? ' on' : ''); b.textContent = text; b.onclick = fn; h.appendChild(b); };
-      pill('전체', isAll(k), () => { if (isAll(k)) allOn.delete(k); else allOn.add(k); delete filters[k]; refresh(); });
-      if (k === 'year') {                       // 최근 N개년 (자료에 있는 가장 최근 연도 기준)
-        const maxY = Math.max(...ALL.map((p) => p.year));
-        [5, 3].forEach((n) => {
-          const target = new Set(keys.filter((v) => parseInt(v, 10) > maxY - n));
-          const cur = isAll(k) ? new Set(keys) : (filters[k] || new Set());
-          const on = target.size > 0 && sameSet(cur, target);
-          pill('최근 ' + n + '개년', on, () => {
-            if (on) { allOn.delete(k); delete filters[k]; }
-            else if (target.size === keys.length) { allOn.add(k); delete filters[k]; }
+    const gp = document.createElement('div'); gp.className = 'gp';
+    let label, f, keys;
+    if (k.startsWith('u:')) {
+      const s = k.slice(2); label = s; f = (p) => p.unit;
+      keys = [...new Set(ALL.filter((p) => p.subject === s).map((p) => p.unit))].sort((x, y) => rank(s, x) - rank(s, y));
+    } else {
+      const fd = fieldOf(k); label = fd[1]; f = fd[2];
+      keys = [...new Set(ALL.map(f))].filter((v) => !(k === 'form' && v === '해당 없음'));
+      if (k === 'subject') keys.sort((x, y) => DISP_ORDER.indexOf(x) - DISP_ORDER.indexOf(y));
+      else if (k === 'type') keys.sort((x, y) => TYPE_ORDER.indexOf(x) - TYPE_ORDER.indexOf(y));
+      else if (k === 'sec') keys.sort((x, y) => SEC_RANK[x] - SEC_RANK[y]);
+      else keys.sort((x, y) => String(x).localeCompare(String(y), 'ko', { numeric: true }));
+    }
+    const h = document.createElement('h3'); const hl = document.createElement('span'); hl.textContent = label; h.appendChild(hl);
+    const pill = (text, on, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'allbtn' + (on ? ' on' : ''); b.textContent = text; b.onclick = fn; h.appendChild(b); };
+    if (k === 'year') {
+      const allLit = yearPreset === 'all' || (yearPreset === null && isAll(k));
+      pill('전체', allLit, () => {
+        if (allLit) { allOn.delete(k); delete filters[k]; yearPreset = null; }
+        else { allOn.add(k); delete filters[k]; yearPreset = 'all'; }
+        refresh();
+      });
+      const maxY = Math.max(...ALL.map((p) => p.year));      // 최근 N개년 (자료에 있는 가장 최근 연도 기준)
+      [5, 3].forEach((n) => {
+        const target = new Set(keys.filter((v) => parseInt(v, 10) > maxY - n));
+        const on = yearPreset === n;
+        pill('최근 ' + n + '개년', on, () => {
+          if (on) { allOn.delete(k); delete filters[k]; yearPreset = null; }
+          else {
+            yearPreset = n;
+            if (target.size === keys.length) { allOn.add(k); delete filters[k]; }
             else { allOn.delete(k); filters[k] = target; }
-            refresh();
-          });
+          }
+          refresh();
         });
-      }
-      box.appendChild(h);
-      const wrap = document.createElement('div'); wrap.className = 'chips'; box.appendChild(wrap);
-      keys.forEach((v) => wrap.appendChild(chip(k, v, 0, keys)));
-    });
+      });
+    } else {
+      pill('전체', isAll(k), () => { if (isAll(k)) allOn.delete(k); else allOn.add(k); delete filters[k]; refresh(); });
+    }
+    gp.appendChild(h);
+    const wrap = document.createElement('div'); wrap.className = 'chips'; gp.appendChild(wrap);
+    keys.forEach((v) => wrap.appendChild(chip(k, v, 0, keys, k === 'u:이산수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined)));   // 버튼 글씨만 다르게, 문항 정보는 그대로
+    if (k === 'year') { const nt = document.createElement('div'); nt.className = 'note'; nt.textContent = '※ 수능, 모의평가는 시행 연도 기준(ex. 2027학년도 수능 → 2026년)'; gp.appendChild(nt); }
+    return gp;
   }
   function chip(k, v, n, allVals, label) {
     const on = isAll(k) || !!(filters[k] && filters[k].has(v));
@@ -109,6 +140,7 @@
     const l = document.createElement('span'); l.textContent = label || v;
     b.append(l);
     b.onclick = () => {
+      if (k === 'year') yearPreset = null;
       let set;
       if (isAll(k)) { allOn.delete(k); set = new Set(allVals); set.delete(v); }       // 전체 상태에서 하나를 끄면 나머지만 선택
       else { set = filters[k] || new Set(); set[on ? 'delete' : 'add'](v); }
@@ -178,43 +210,84 @@
     $('qClr').onclick = () => { query = ''; qb.value = ''; draw(); qb.focus(); };
     draw();
   }
+  function fixTotalWidth() {              // "N 문항" 칸 폭 고정 (자릿수가 달라져도 버튼이 늘었다 줄지 않게)
+    const t = $('total'), cs = getComputedStyle(t), c = document.createElement('canvas').getContext('2d');
+    c.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    const w = Math.max(...['0,000 문항', '8,888 문항', '1,760 문항'].map((x) => c.measureText(x).width));
+    t.style.width = Math.ceil(w) + 'px'; t.style.boxSizing = 'content-box';
+  }
   function updateButtons() {
     const nPick = picked().length;
     $('total').textContent = nPick.toLocaleString('ko-KR') + ' 문항';
     $('btnMake').disabled = busy || nPick === 0;
     $('btnDetail').className = detail ? 'on' : '';
     $('btnDetail').textContent = detail ? '문항 목록 닫기' : '문항 목록 열기';
-    $('modes').hidden = !!mode; $('sideTitle').textContent = mode === 'time' ? '시행 연월로 찾기' : mode === 'unit' ? '과목/단원으로 찾기' : '';
+    if (!animating) { $('modes').hidden = !!mode; $('wrap').hidden = !mode; $('side').hidden = !mode; }
+    $('sideTitle').textContent = mode === 'time' ? '시행 연월로 찾기' : mode === 'unit' ? '과목/단원으로 찾기' : '';
     $('btnMore').className = moreOpen ? 'open' : ''; $('btnMore').setAttribute('aria-expanded', moreOpen);
     $('extrasWrap').classList.toggle('open', moreOpen);
     clearTimeout(extraTimer);
     if (!moreOpen) extraTimer = setTimeout(() => { if (!moreOpen) $('extras').innerHTML = ''; }, 360);
-    $('wrap').hidden = !mode; $('side').hidden = !mode;
     if (!$('status').dataset.busy) $('status').textContent = '';
   }
   function refresh() { renderFilters(); renderMain(); updateButtons(); }
-  /* 모드 버튼을 누르면: 글씨 페이드아웃 → 버튼이 옆 버튼 자리까지 넓어짐 → 선택 화면이 페이드인 */
+  /* 모드 버튼 → 선택 화면: 버튼이 옆 칸까지 넓어지고 높이도 선택 창에 맞춘 뒤, 뒤에 깔린 선택 창이 보이도록 버튼이 서서히 사라진다. 뒤로 가기는 그 역순. */
   let animating = false;
-  function setMode(m) {
+  const reduceMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  async function setMode(m) {
     if (animating) return;
-    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const modes = $('modes'), me = $(m === 'time' ? 'modeTime' : 'modeUnit'), other = $(m === 'time' ? 'modeUnit' : 'modeTime');
-    const finish = () => {
-      modes.className = 'modes'; modes.style.cssText = ''; [me, other].forEach((b) => { b.className = ''; b.style.cssText = ''; });
-      mode = m; refresh(); animating = false;
-      const w = $('wrap'); w.classList.remove('fadein'); void w.offsetWidth; w.classList.add('fadein');
-    };
-    if (reduce) { finish(); return; }
+    if (reduceMotion()) { mode = m; yearPreset = null; refresh(); return; }
     animating = true;
-    const hgt = me.getBoundingClientRect().height + 'px';                       // 넓어져도 높이는 그대로
-    [me, other].forEach((b) => { b.style.aspectRatio = 'auto'; b.style.height = hgt; });
+    const modes = $('modes'), wrap = $('wrap'), side = $('side');
+    const me = $(m === 'time' ? 'modeTime' : 'modeUnit'), other = $(m === 'time' ? 'modeUnit' : 'modeTime');
+    mode = m; yearPreset = null;
+    wrap.hidden = false; side.hidden = false; wrap.classList.add('measure');
+    refresh();                                               // 뒤쪽 선택 창을 보이지 않게 만들어 크기를 잰다
+    const H = side.getBoundingClientRect().height;
+    const h0 = me.getBoundingClientRect().height;
+    [me, other].forEach((b) => { b.style.aspectRatio = 'auto'; b.style.height = h0 + 'px'; });
     me.classList.add('fading'); other.classList.add('fading', 'gone');
     void modes.offsetWidth;
     modes.classList.add(m === 'time' ? 'go-left' : 'go-right');
-    setTimeout(finish, 470);
+    [me, other].forEach((b) => { b.style.height = H + 'px'; });
+    me.style.borderRadius = '10px';
+    await wait(430);
+    wrap.classList.remove('measure'); wrap.classList.add('under');   // 선택 창을 버튼 뒤에 깔고
+    me.style.opacity = '0';                                          // 버튼을 서서히 지운다
+    await wait(480);
+    modes.hidden = true; modes.className = 'modes'; [me, other].forEach((b) => { b.className = ''; b.style.cssText = ''; });
+    wrap.classList.remove('under'); animating = false; refresh();
   }
-  function goHome() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; refresh();
-    const mo = $('modes'); mo.classList.remove('fadein'); void mo.offsetWidth; mo.classList.add('fadein'); }
+  function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearPreset = null; }
+  async function goHome() {
+    if (animating) return;
+    if (reduceMotion() || !mode) { resetState(); refresh(); return; }
+    animating = true;
+    const modes = $('modes'), wrap = $('wrap'), side = $('side'), m = mode;
+    const me = $(m === 'time' ? 'modeTime' : 'modeUnit'), other = $(m === 'time' ? 'modeUnit' : 'modeTime');
+    const H = side.getBoundingClientRect().height;
+    wrap.style.height = H + 'px'; wrap.classList.add('under');       // 목록이 열려 있어도 선택 창만 남긴다
+    modes.hidden = false;
+    modes.classList.add('notrans', m === 'time' ? 'go-left' : 'go-right');
+    me.classList.add('fading'); other.classList.add('fading', 'gone');
+    [me, other].forEach((b) => { b.style.aspectRatio = 'auto'; b.style.height = H + 'px'; });
+    me.style.borderRadius = '10px'; me.style.opacity = '0';
+    void modes.offsetWidth; modes.classList.remove('notrans');
+    await nextFrame();
+    me.style.opacity = '1';                                          // 버튼이 선택 창을 덮고
+    await wait(480);
+    wrap.style.visibility = 'hidden';
+    const sq = (modes.getBoundingClientRect().width - 10) / 2;       // 다시 정사각형 두 칸으로 줄어든다
+    modes.classList.remove('go-left', 'go-right');
+    me.classList.remove('fading'); other.classList.remove('fading', 'gone');
+    [me, other].forEach((b) => { b.style.height = sq + 'px'; }); me.style.borderRadius = '';
+    await wait(450);
+    modes.className = 'modes'; [me, other].forEach((b) => { b.className = ''; b.style.cssText = ''; });
+    wrap.classList.remove('under'); wrap.style.cssText = '';
+    resetState(); animating = false; refresh();
+  }
 
   /* ---------- 양식 편집 팝업 ---------- */
   function openForm() {
@@ -373,7 +446,7 @@
       box.style.setProperty('--d', d + 'px');
     });
   }
-  alignHeader();
+  alignHeader(); fixTotalWidth();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(alignHeader);
 
   async function init() {
