@@ -6,50 +6,76 @@
   const FIELDS = [   // [키, 이름, 값 함수, 분류(time=출제 시기별 / unit=단원별)]
     ['grade', '학년', (p) => p.grade + '학년', 'time'],
     ['year', '연도', (p) => p.year + '년', 'time'],
-    ['month', '시행월', (p) => p.month + '월', 'time'],
+    ['month', '월', (p) => p.month + '월', 'time'],
     ['form', '가형/나형', (p) => (p.form ? p.form + '형' : '해당 없음'), 'time'],
     ['sec', '선택', (p) => p.sec, 'time'],
     ['subject', '과목', (p) => p.subject, 'unit'],
     ['unit', '단원', (p) => p.subject + '|' + p.unit, 'unit'],
     ['points', '배점', (p) => (p.points == null ? '-' : p.points + '점'), 'extra'],
-    ['type', '형식', (p) => p.type, 'extra'],
+    ['type', '문제 유형', (p) => typeName(p.type), 'extra'],
   ];
-  let DATA = null, ALL = [], filters = {}, excluded = new Set(), mode = null, detail = false, query = '', moreOpen = false, busy = false;
+  const typeName = (t) => (t === '선택형' ? '5지선다형' : t);
+  const TYPE_ORDER = ['5지선다형', '단답형'];
+  let DATA = null, ALL = [], filters = {}, allOn = new Set(), excluded = new Set(), mode = null, detail = false, query = '', moreOpen = false, busy = false;
   const opts = { title: '전국연합 및 모의평가 기출 연습문제', footer: '우리는 알아야만 한다. 우리는 알게 될 것이다. - David Hilbert', layout: 'auto', sol: '1' };
 
   const cmp = (a, b) => a.year - b.year || a.grade - b.grade || a.month - b.month || (a.form || '').localeCompare(b.form || '', 'ko') || SEC_RANK[a.sec] - SEC_RANK[b.sec] || a.n - b.n;
 
+  // 한 묶음(그룹)에서 '전체' 알약이 켜져 있으면 그 그룹은 제한 없음, 아니면 고른 칩만 해당. 둘 다 없으면 아직 고르지 않은 상태.
+  const REQ = [['grade'], ['year'], ['month'], ['form'], ['sec'], ['subject', 'unit'], ['points'], ['type']];
+  const FN = Object.fromEntries(FIELDS.map((f) => [f[0], f[2]]));
+  const isAll = (k) => allOn.has(k);
+  const isSel = (k) => !!(filters[k] && filters[k].size);
+  const isActive = (k) => isAll(k) || isSel(k);
+  // 칩 개수 계산용: 고르지 않은 그룹은 제한 없음으로 본다
   function matches(p, skip) {
-    for (const [k, , f] of FIELDS) {
-      if (k === skip) continue;
+    for (const k of Object.keys(FN)) {
+      if (k === skip || isAll(k)) continue;
       const set = filters[k];
-      if (set && set.size && !set.has(f(p))) return false;
+      if (set && set.size && !set.has(FN[k](p))) return false;
     }
     return true;
   }
-
-  const activeCount = () => Object.values(filters).reduce((n, st) => n + (st ? st.size : 0), 0);
+  const fieldCat = (k) => FIELDS.find((f) => f[0] === k)[3];
+  // 지금 화면에 보이는 그룹
+  function shownKeys() {
+    if (!mode) return [];
+    return FIELDS.filter((f) => (f[3] === mode || (moreOpen && f[3] === 'extra')) && !(GATE[f[0]] && !GATE[f[0]]())).map((f) => f[0]);
+  }
+  // 실제 결과: 보이는 그룹마다 '전체' 또는 칩 선택이 있어야 하고, 고른 칩 조건을 모두 만족해야 한다
+  function strictMatch(p, shown) {
+    for (const grp of REQ) {
+      const ks = grp.filter((k) => shown.includes(k));
+      if (!ks.length) continue;
+      if (!ks.some(isActive)) return false;
+      for (const k of ks) { if (isAll(k)) continue; const set = filters[k]; if (set && set.size && !set.has(FN[k](p))) return false; }
+    }
+    return true;
+  }
   const picked = () => visible().filter((p) => !excluded.has(p.id));
 
-  // 가형/나형, 선택은 3학년을 골랐고 그 조건에 해당 문제가 있을 때만 보인다
+  // 가형/나형, 선택은 학년을 골랐고 그 조건에 해당 문제가 있을 때만 보인다
   const GATE = {
-    form: () => !!(filters.grade && filters.grade.size) && ALL.some((p) => p.form && matches(p, 'form')),
-    sec: () => !!(filters.grade && filters.grade.size) && ALL.some((p) => p.sec !== '공통' && matches(p, 'sec')),
+    form: () => isActive('grade') && ALL.some((p) => p.form && matches(p, 'form')),
+    sec: () => isActive('grade') && ALL.some((p) => p.sec !== '공통' && matches(p, 'sec')),
   };
   function renderFilters() {
     const box = $('filters'); box.innerHTML = ''; $('extras').innerHTML = '';
     if (!mode) return;
-    for (const k of Object.keys(GATE)) if (!GATE[k]() && filters[k]) delete filters[k];   // 숨겨지는 조건은 해제
+    for (const k of Object.keys(GATE)) if (!GATE[k]()) { delete filters[k]; allOn.delete(k); }   // 숨겨지는 조건은 해제
     renderGroups(box, FIELDS.filter((f) => f[3] === mode));
-    if (moreOpen) renderGroups($('extras'), FIELDS.filter((f) => f[3] === 'extra'));
+    if (moreOpen) FIELDS.filter((f) => f[3] === 'extra').forEach((fd) => { const d = document.createElement('div'); renderGroups(d, [fd]); $('extras').appendChild(d); });
   }
   function renderGroups(box, fields) {
     fields.forEach(([k, label, f]) => {
       if (GATE[k] && !GATE[k]()) return;
-      const h = document.createElement('h3'); h.textContent = label; box.appendChild(h);
+      const h = document.createElement('h3'); const hl = document.createElement('span'); hl.textContent = label; h.appendChild(hl);
+      const ab = document.createElement('button'); ab.type = 'button'; ab.className = 'allbtn' + (isAll(k) ? ' on' : ''); ab.textContent = '전체';
+      h.appendChild(ab); box.appendChild(h);
       const counts = new Map();
       ALL.forEach((p) => { if (matches(p, k)) counts.set(f(p), (counts.get(f(p)) || 0) + 1); });
-      const keys = [...new Set(ALL.map(f))];
+      const keys = [...new Set(ALL.map(f))].filter((v) => !(k === 'form' && v === '해당 없음'));
+      ab.onclick = () => { if (isAll(k)) allOn.delete(k); else allOn.add(k); delete filters[k]; refresh(); };
       const UO = (DATA.units || []).map((u) => u[0] + '|' + u[1]);
       const rank = (v) => { const i = UO.indexOf(v); return i < 0 ? 999 : i; };
       let wrap = document.createElement('div'); wrap.className = 'chips'; box.appendChild(wrap);
@@ -59,27 +85,37 @@
         keys.forEach((v) => {
           const [sub, un] = v.split('|');
           if (sub !== last) { const g = document.createElement('div'); g.className = 'grp'; g.textContent = sub; box.appendChild(g); wrap = document.createElement('div'); wrap.className = 'chips'; box.appendChild(wrap); last = sub; }
-          wrap.appendChild(chip(k, v, counts.get(v) || 0, un));
+          wrap.appendChild(chip(k, v, counts.get(v) || 0, keys, un));
         });
         return;
       }
       if (k === 'subject') keys.sort((a, b) => Math.min(...UO.map((u, i) => (u.split('|')[0] === a ? i : 999))) - Math.min(...UO.map((u, i) => (u.split('|')[0] === b ? i : 999))));
+      else if (k === 'type') keys.sort((x, y) => TYPE_ORDER.indexOf(x) - TYPE_ORDER.indexOf(y));
       else if (k === 'sec') keys.sort((x, y) => SEC_RANK[x] - SEC_RANK[y]);
       else keys.sort((a, b) => String(a).localeCompare(String(b), 'ko', { numeric: true }));
-      keys.filter((v) => !(k === 'form' && v === '해당 없음')).forEach((v) => wrap.appendChild(chip(k, v, counts.get(v) || 0)));
+      keys.forEach((v) => wrap.appendChild(chip(k, v, counts.get(v) || 0, keys)));
     });
   }
-  function chip(k, v, n, label) {
-    const on = !!(filters[k] && filters[k].has(v));
+  function chip(k, v, n, allVals, label) {
+    const on = isAll(k) || !!(filters[k] && filters[k].has(v));
     const b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (on ? ' on' : '') + (n === 0 && !on ? ' zero' : '');
     const l = document.createElement('span'); l.textContent = label || v;
     const c = document.createElement('span'); c.className = 'n'; c.textContent = n;
+    const maxN = ALL.reduce((s, p) => s + (FN[k](p) === v ? 1 : 0), 0);          // 이 칸에 들어갈 수 있는 가장 큰 수 기준으로 폭 고정
+    c.style.minWidth = 'calc(' + String(maxN).length + 'ch + 14px)';
     b.append(l, c);
-    b.onclick = () => { (filters[k] = filters[k] || new Set())[on ? 'delete' : 'add'](v); refresh(); };
+    b.onclick = () => {
+      let set;
+      if (isAll(k)) { allOn.delete(k); set = new Set(allVals); set.delete(v); }       // 전체 상태에서 하나를 끄면 나머지만 선택
+      else { set = filters[k] || new Set(); set[on ? 'delete' : 'add'](v); }
+      if (set.size && set.size === allVals.length) { allOn.add(k); delete filters[k]; }   // 전부 골랐으면 '전체'로
+      else filters[k] = set;
+      refresh();
+    };
     return b;
   }
 
-  function visible() { return ALL.filter((p) => matches(p, null)); }
+  function visible() { const sk = shownKeys(); return ALL.filter((p) => strictMatch(p, sk)); }
 
   function renderMain() {
     const m = $('main'); m.innerHTML = '';
@@ -89,12 +125,13 @@
     const head = document.createElement('div'); head.className = 'listhead';
     head.innerHTML = '<label class="all"><input type="checkbox" id="chkAll"><span>전체선택</span></label>'
       + '<div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>'
-      + '<input type="text" id="qBox" placeholder="검색" autocomplete="off"><button type="button" id="qClr" aria-label="전체 지우기">✕</button></div>'
+      + '<input type="text" id="qBox" autocomplete="off"><button type="button" id="qClr" aria-label="전체 지우기">✕</button></div>'
       + '<span class="cnt" id="cnt"></span>';
     m.appendChild(head);
     const list = document.createElement('div'); list.className = 'list'; m.appendChild(list);
-    const label = (p) => `${p.year}년 ${p.month}월 ${p.grade}학년${p.form ? '(' + p.form + '형)' : ''} ${p.n}번`;
-    const meta = (p) => [p.sec === '공통' ? null : p.sec, `${p.subject} › ${p.unit}`, p.points == null ? null : p.points + '점', p.type].filter(Boolean).join(' · ');
+    const label = (p) => `${p.grade}학년${p.form ? '(' + p.form + '형)' : ''} ${p.year}년 ${p.month}월 ${p.n}번`;
+    const metaParts = (p) => [p.sec === '공통' ? null : p.sec, `${p.subject} › ${p.unit}`, p.points == null ? null : p.points + '점', typeName(p.type)].filter(Boolean);
+    const meta = (p) => metaParts(p).join(' ');
     let shown = [];
     const sync = () => {
       const all = $('chkAll'), n = shown.filter((p) => !excluded.has(p.id)).length;
@@ -114,9 +151,12 @@
         const box = document.createElement('div'); box.className = 'box';
         const t = document.createElement('div'); t.className = 't'; t.textContent = label(p);
         if (p.also) { const sm = document.createElement('small'); sm.textContent = ' (=' + p.also + ')'; t.appendChild(sm); }
-        const mt = document.createElement('div'); mt.className = 'm'; mt.textContent = meta(p);
+        const vb = () => { const i = document.createElement('i'); i.className = 'vb'; return i; };
         const sm = document.createElement('div'); sm.className = 's'; sm.textContent = p.summary;
-        box.append(t, mt, sm); row.append(c, box);
+        box.append(t);
+        const parts = metaParts(p);
+        parts.forEach((s, ix) => { const e = document.createElement('div'); e.className = ix === (p.sec === '공통' ? 0 : 1) ? 'u' : 'k'; e.textContent = s; box.append(vb(), e); });
+        box.append(vb(), sm); row.append(c, box);
         row.onclick = (e) => { if (e.target !== c) { c.checked = !c.checked; c.onchange(); } };
         list.appendChild(row);
       });
@@ -124,26 +164,23 @@
     };
     $('chkAll').onchange = (e) => { shown.forEach((p) => { e.target.checked ? excluded.delete(p.id) : excluded.add(p.id); }); draw(); };
     const qb = $('qBox'); qb.value = query;
-    qb.oninput = () => { query = qb.value; $('qClr').style.visibility = query ? 'visible' : 'hidden'; draw(); };
-    $('qClr').style.visibility = query ? 'visible' : 'hidden';
-    $('qClr').onclick = () => { query = ''; qb.value = ''; $('qClr').style.visibility = 'hidden'; draw(); qb.focus(); };
+    qb.oninput = () => { query = qb.value; draw(); };
+    $('qClr').onclick = () => { query = ''; qb.value = ''; draw(); qb.focus(); };
     draw();
   }
   function updateButtons() {
-    $('btnMake').disabled = busy || !activeCount() || picked().length === 0;
+    $('btnMake').disabled = busy || picked().length === 0;
     $('btnDetail').className = detail ? 'on' : '';
     $('btnDetail').textContent = detail ? '문항 목록 닫기' : '문항 목록 열기';
     $('modes').hidden = !!mode; $('sideTitle').textContent = mode === 'time' ? '시행 연월로 찾기' : mode === 'unit' ? '과목/단원으로 찾기' : '';
-    const nExtra = FIELDS.filter((f) => f[3] === 'extra').reduce((s, f) => s + (filters[f[0]] ? filters[f[0]].size : 0), 0);
     $('btnMore').className = moreOpen ? 'open' : ''; $('btnMore').setAttribute('aria-expanded', moreOpen);
-    $('moreCnt').textContent = !moreOpen && nExtra ? '배점·형식 ' + nExtra + '개 선택됨' : '';
     $('extras').hidden = !moreOpen;
     $('wrap').hidden = !mode; $('side').hidden = !mode;
     if (!$('status').dataset.busy) $('status').textContent = '';
   }
   function refresh() { renderFilters(); renderMain(); updateButtons(); }
   function setMode(m) { mode = m; refresh(); }
-  function goHome() { mode = null; detail = false; filters = {}; excluded = new Set(); query = ''; moreOpen = false; refresh(); }
+  function goHome() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; refresh(); }
 
   /* ---------- 양식 편집 팝업 ---------- */
   function openForm() {
@@ -277,7 +314,7 @@
     ALL = DATA.problems.slice().sort(cmp);
     $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
     $('btnDetail').onclick = () => { detail = !detail; refresh(); };
-    $('btnMake').onclick = make; $('btnMore').onclick = () => { moreOpen = !moreOpen; refresh(); }; $('btnBack').onclick = goHome;
+    $('btnMake').onclick = make; $('btnMore').onclick = () => { moreOpen = !moreOpen; if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('btnBack').onclick = goHome;
     $('btnForm').onclick = openForm;
     $('mOk').onclick = () => closeForm(true); $('mCancel').onclick = () => closeForm(false); $('mX').onclick = () => closeForm(false);
     $('busy').addEventListener('click', () => { if (!busy) showBusy(false); });
