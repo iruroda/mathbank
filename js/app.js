@@ -29,9 +29,9 @@
   const inc = (k, v) => isAll(k) || !!(filters[k] && filters[k].has(v));
   const isActive = (k) => isAll(k) || isSel(k);
   const fieldOf = (k) => FIELDS.find((f) => f[0] === k);
-  // 화면에 보이는 묶음(모드별 순서). 과목/단원 모드: 과목, 연도, 그리고 고른 과목의 단원 묶음들
+  // 화면에 보이는 묶음(모드별 순서). 과목/단원 모드: 과목, 고른 과목의 단원 묶음들, 연도
   function modeKeys(m) {
-    return m === 'time' ? ['grade', 'year', 'month', 'form', 'sec'] : ['subject', 'year', ...SUBJ_ORDER.map((s) => 'u:' + s)];
+    return m === 'time' ? ['grade', 'year', 'month', 'form', 'sec'] : ['subject', ...SUBJ_ORDER.map((s) => 'u:' + s), 'year'];
   }
   function shownKeys() {
     if (!mode) return [];
@@ -57,11 +57,11 @@
     sec: () => inc('grade', '3학년') && (inc('year', '2021년') || inc('year', '2022년')),
   };
   function renderFilters() {
-    const box = $('filters'); box.innerHTML = ''; $('extras').innerHTML = '';
-    if (!mode) return;
+    const box = $('filters'); box.innerHTML = '';
+    if (!mode) { $('extras').innerHTML = ''; return; }
     for (const k of Object.keys(GATE)) if (!GATE[k]()) { delete filters[k]; allOn.delete(k); }   // 숨겨지는 조건은 해제
     renderGroups(box, modeKeys(mode));
-    if (moreOpen) ['points', 'type'].forEach((k) => { const d = document.createElement('div'); renderGroups(d, [k]); $('extras').appendChild(d); });
+    if (moreOpen) { $('extras').innerHTML = ''; ['points', 'type'].forEach((k) => { const d = document.createElement('div'); renderGroups(d, [k]); $('extras').appendChild(d); }); }   // 닫히는 동안에는 내용을 그대로 둔다
   }
   const sameSet = (x, y) => x.size === y.size && [...x].every((v) => y.has(v));
   function renderGroups(box, fkeys) {
@@ -121,10 +121,16 @@
 
   function visible() { const sk = shownKeys(); return ALL.filter((p) => strictMatch(p, sk)); }
 
+  let mainTimer = 0, extraTimer = 0;
   function renderMain() {
-    const m = $('main'); m.innerHTML = '';
-    if (!detail) { $('main').hidden = true; return; }
-    $('main').hidden = false;
+    const m = $('main');
+    clearTimeout(mainTimer);
+    if (!detail) {                                          // 접히는 애니메이션이 끝난 뒤에 내용을 비운다
+      $('mainWrap').classList.remove('open');
+      mainTimer = setTimeout(() => { if (!detail) m.innerHTML = ''; }, 360);
+      return;
+    }
+    m.innerHTML = ''; $('mainWrap').classList.add('open');
     const vis = visible();                                  // 문항 목록
     const head = document.createElement('div'); head.className = 'listhead';
     head.innerHTML = '<label class="all"><input type="checkbox" id="chkAll"><span>전체</span></label>'
@@ -173,18 +179,42 @@
     draw();
   }
   function updateButtons() {
-    $('btnMake').disabled = busy || picked().length === 0;
+    const nPick = picked().length;
+    $('total').textContent = nPick.toLocaleString('ko-KR') + ' 문항';
+    $('btnMake').disabled = busy || nPick === 0;
     $('btnDetail').className = detail ? 'on' : '';
     $('btnDetail').textContent = detail ? '문항 목록 닫기' : '문항 목록 열기';
     $('modes').hidden = !!mode; $('sideTitle').textContent = mode === 'time' ? '시행 연월로 찾기' : mode === 'unit' ? '과목/단원으로 찾기' : '';
     $('btnMore').className = moreOpen ? 'open' : ''; $('btnMore').setAttribute('aria-expanded', moreOpen);
-    $('extras').hidden = !moreOpen;
+    $('extrasWrap').classList.toggle('open', moreOpen);
+    clearTimeout(extraTimer);
+    if (!moreOpen) extraTimer = setTimeout(() => { if (!moreOpen) $('extras').innerHTML = ''; }, 360);
     $('wrap').hidden = !mode; $('side').hidden = !mode;
     if (!$('status').dataset.busy) $('status').textContent = '';
   }
   function refresh() { renderFilters(); renderMain(); updateButtons(); }
-  function setMode(m) { mode = m; refresh(); }
-  function goHome() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; refresh(); }
+  /* 모드 버튼을 누르면: 글씨 페이드아웃 → 버튼이 옆 버튼 자리까지 넓어짐 → 선택 화면이 페이드인 */
+  let animating = false;
+  function setMode(m) {
+    if (animating) return;
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const modes = $('modes'), me = $(m === 'time' ? 'modeTime' : 'modeUnit'), other = $(m === 'time' ? 'modeUnit' : 'modeTime');
+    const finish = () => {
+      modes.className = 'modes'; modes.style.cssText = ''; [me, other].forEach((b) => { b.className = ''; b.style.cssText = ''; });
+      mode = m; refresh(); animating = false;
+      const w = $('wrap'); w.classList.remove('fadein'); void w.offsetWidth; w.classList.add('fadein');
+    };
+    if (reduce) { finish(); return; }
+    animating = true;
+    const hgt = me.getBoundingClientRect().height + 'px';                       // 넓어져도 높이는 그대로
+    [me, other].forEach((b) => { b.style.aspectRatio = 'auto'; b.style.height = hgt; });
+    me.classList.add('fading'); other.classList.add('fading', 'gone');
+    void modes.offsetWidth;
+    modes.classList.add(m === 'time' ? 'go-left' : 'go-right');
+    setTimeout(finish, 470);
+  }
+  function goHome() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; refresh();
+    const mo = $('modes'); mo.classList.remove('fadein'); void mo.offsetWidth; mo.classList.add('fadein'); }
 
   /* ---------- 양식 편집 팝업 ---------- */
   function openForm() {
@@ -313,6 +343,12 @@
     } finally { busy = false; updateButtons(); }
   }
 
+  /* 우클릭 메뉴, 드래그 시작, 글자 선택 시작 차단 (입력칸은 제외) */
+  ['contextmenu', 'dragstart', 'selectstart'].forEach((t) => document.addEventListener(t, (e) => {
+    if (t === 'selectstart' && e.target && e.target.closest && e.target.closest('input, textarea, select')) return;
+    e.preventDefault();
+  }));
+
   /* 스크롤바 표시: 스크롤 중이거나(1초), 마우스가 화면 오른쪽 끝에 있을 때만 */
   (function () {
     const timers = new Map();
@@ -341,7 +377,7 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(alignHeader);
 
   async function init() {
-    const r = await fetch('data/problems.json'); DATA = await r.json();
+    const r = await fetch('data/problems.json', { cache: 'no-cache' }); DATA = await r.json();
     ALL = DATA.problems.slice().sort(cmp);
     SUBJ_ORDER = [...new Set((DATA.units || []).map((u) => u[0]))];                // 성취기준 파일 순서
     ALL.forEach((p) => { if (!SUBJ_ORDER.includes(p.subject)) SUBJ_ORDER.push(p.subject); });
@@ -352,7 +388,7 @@
     FN = Object.fromEntries(FIELDS.map((f) => [f[0], f[2]]));
     $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
     $('btnDetail').onclick = () => { detail = !detail; refresh(); };
-    $('total').textContent = ALL.length.toLocaleString('ko-KR') + ' 문항';
+    $('total').style.minWidth = (Math.max(5, String(ALL.length).length) + 3) + 'ch';   // 숫자가 바뀌어도 버튼 폭이 흔들리지 않게
     $('btnMake').onclick = make; $('btnMore').onclick = () => { moreOpen = !moreOpen; if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('btnBack').onclick = goHome;
     $('btnForm').onclick = openForm;
     $('mOk').onclick = () => closeForm(true); $('mCancel').onclick = () => closeForm(false); $('mX').onclick = () => closeForm(false);

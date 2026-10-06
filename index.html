@@ -11,6 +11,10 @@
   :root { --font:system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; --bg:#f6f7f9; --card:#fff; --ink:#1d2433; --sub:#5b6477; --line:#dde1e8; --acc:#2456d6; --acc2:#e8eefc; --shadow:rgba(20,30,50,.45); }
   @media (prefers-color-scheme: dark) { :root { --bg:#14171d; --card:#1c2029; --ink:#e8ebf2; --sub:#9aa3b5; --line:#2c3240; --acc:#7da2ff; --acc2:#222c45; --shadow:rgba(0,0,0,.65); } }
   * { box-sizing: border-box; }
+  /* 드래그(글자 선택·그림 끌기) 금지. 입력칸만 예외 */
+  body { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  input, textarea, select { -webkit-user-select:text; user-select:text; }
+  img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   button, input, select, textarea { font-family:inherit; }
   /* 스크롤바: 쓰지 않을 때는 투명, 스크롤하거나 마우스를 올리면 보임 */
   html, .list { scrollbar-color: transparent transparent; }
@@ -33,12 +37,20 @@
   button:hover:not(:disabled) { border-color:var(--acc); }
   button.primary { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:600; }
   button:disabled { opacity:.45; cursor:default; }
-  .modes { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:4px 0 12px; }
+  .modes { display:grid; grid-template-columns:1fr 1fr; column-gap:10px; margin:4px 0 12px; transition:grid-template-columns .4s ease, column-gap .4s ease; }
+  .modes button { min-width:0; overflow:hidden; white-space:nowrap; transition:color .18s ease, opacity .25s ease; }
+  .modes.go-left { grid-template-columns:1fr 0fr; column-gap:0; }
+  .modes.go-right { grid-template-columns:0fr 1fr; column-gap:0; }
+  .modes button.fading { color:transparent; }
+  .modes button.gone { opacity:0; padding:0; border-width:0; }
+  @keyframes fin { from { opacity:0; } to { opacity:1; } }
+  .fadein { animation:fin .3s ease; }
+  @media (prefers-reduced-motion: reduce) { .modes, .modes button { transition:none; } .fadein { animation:none; } }
   .modes button .bd { font-size:12px; font-weight:600; margin-left:6px; opacity:.85; }
   .modes button { aspect-ratio:1 / 1; padding:10px; font-size:17px; font-weight:700; border-radius:14px; }
   .modes button.on { background:var(--acc); color:#fff; border-color:var(--acc); }
-  .wrap { display:flex; flex-direction:column; gap:12px; }
-  .modes[hidden], .wrap[hidden], #main[hidden], .side[hidden] { display:none; }
+  .wrap { display:flex; flex-direction:column; gap:0; }
+  .modes[hidden], .wrap[hidden], .side[hidden] { display:none; }
   @media (max-width: 640px) { .page { padding:0 8px 20px; } }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
   .side { display:flex; flex-direction:column; padding:0; overflow:hidden; }
@@ -66,7 +78,12 @@
   .filters.extras { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start; }
   .filters.extras > div h3 { margin-top:0; }
   .filters.extras { padding-top:0; }
-  .filters.extras[hidden] { display:none; }
+  /* 위에서 아래로 펼쳐지고 위로 접히면서 페이드 */
+  .collapse { display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .32s ease, opacity .32s ease; }
+  .collapse.open { grid-template-rows:1fr; opacity:1; }
+  .collapse-in { overflow:hidden; min-height:0; }
+  #main { margin-top:12px; }
+  @media (prefers-reduced-motion: reduce) { .collapse { transition:none; } }
   .busy { position:fixed; inset:0; z-index:80; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(246,247,249,.78); backdrop-filter:blur(3px); }
   @media (prefers-color-scheme: dark) { .busy { background:rgba(20,23,29,.78); } .busybox { box-shadow:0 8px 30px rgba(0,0,0,.6); } }
   .busy.show { display:flex; }
@@ -77,7 +94,7 @@
   #busyMsg { font-size:15px; font-weight:600; }
   .busy.err #ringFg, .busy.err svg { display:none; } .busy.err #busyMsg { color:#c0392b; padding:0 16px; text-align:center; font-size:13px; }
   .sidefoot { padding:10px 12px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; background:var(--card); }
-  .sidefoot #total { flex:none; font-size:13px; color:var(--sub); white-space:nowrap; padding-right:4px; }
+  .sidefoot #total { flex:none; font-variant-numeric:tabular-nums; text-align:right; font-size:17px; color:var(--sub); white-space:nowrap; padding-right:4px; }
   .sidefoot button { flex:1 1 0; min-width:0; padding:10px; }
   .sidefoot #status { flex-basis:100%; }
   .sidefoot button.on { background:var(--acc2); border-color:var(--acc); color:var(--acc); font-weight:600; }
@@ -136,10 +153,10 @@
   </div>
   <div class="wrap" id="wrap" hidden>
     <aside class="card side" id="side" hidden>
-      <div class="sidehead"><h2 id="sideTitle"></h2><button id="btnBack" aria-label="처음으로" title="처음으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3 10l6 6"/><path d="M3 10h12a5 5 0 0 1 0 10H7"/></svg></button></div>
+      <div class="sidehead"><h2 id="sideTitle"></h2><button id="btnBack" aria-label="처음으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6L3.5 10l4 4"/><path d="M3.5 10h11.5a5 5 0 0 1 0 10H7"/></svg></button></div>
       <div class="filters" id="filters"></div>
-      <div class="morebar"><button id="btnMore" aria-label="배점, 문제 유형 더 보기" title="배점, 문제 유형"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 7 6-7z"/></svg></button></div>
-      <div class="filters extras" id="extras" hidden></div>
+      <div class="morebar"><button id="btnMore" aria-label="배점, 문제 유형 더 보기"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 7 6-7z"/></svg></button></div>
+      <div class="collapse" id="extrasWrap"><div class="collapse-in"><div class="filters extras" id="extras"></div></div></div>
       <div class="sidefoot">
         <span id="total"></span>
         <button id="btnDetail">문항 목록 열기</button>
@@ -147,7 +164,7 @@
         <div id="status"></div>
       </div>
     </aside>
-    <main class="card" id="main" hidden></main>
+    <div class="collapse" id="mainWrap"><div class="collapse-in"><main class="card" id="main"></main></div></div>
   </div>
 </div>
 
@@ -163,7 +180,9 @@
     <div class="btns"><button class="primary" id="mOk">적용</button><button id="mCancel">취소</button></div>
   </div>
 </div>
-<script src="js/layout.js"></script>
-<script src="js/app.js"></script>
+<script>
+/* 배포 직후 옛 파일(캐시)이 섞여 동작이 어긋나지 않도록, 스크립트를 순서대로 매번 새 주소로 불러온다 */
+(function () { var v = Date.now(); ['js/layout.js', 'js/app.js'].reduce(function (p, s) { return p.then(function () { return new Promise(function (ok, no) { var e = document.createElement('script'); e.src = s + '?v=' + v; e.onload = ok; e.onerror = no; document.body.appendChild(e); }); }); }, Promise.resolve()); })();
+</script>
 </body>
 </html>
