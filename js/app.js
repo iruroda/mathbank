@@ -244,7 +244,7 @@
     const me = $(m === 'time' ? 'modeTime' : 'modeUnit'), other = $(m === 'time' ? 'modeUnit' : 'modeTime');
     mode = m; yearPreset = null;
     wrap.hidden = false; side.hidden = false; wrap.classList.add('measure');
-    refresh();                                               // 뒤쪽 선택 창을 보이지 않게 만들어 크기를 잰다
+    refresh();                                               // 선택 창은 보이지 않는 채로 크기만 잰다 (뒤에 깔아두지 않는다)
     const H = side.getBoundingClientRect().height;
     const h0 = me.getBoundingClientRect().height;
     [me, other].forEach((b) => { b.style.aspectRatio = 'auto'; b.style.height = h0 + 'px'; });
@@ -253,15 +253,13 @@
     modes.classList.add(m === 'time' ? 'go-left' : 'go-right');
     [me, other].forEach((b) => { b.style.height = H + 'px'; });
     me.style.borderRadius = '10px';
-    await wait(430);
-    wrap.style.opacity = '0'; wrap.classList.remove('measure'); wrap.classList.add('under');   // 선택 창을 버튼 뒤에 깔되 아직 안 보이게
-    void wrap.offsetWidth;
-    wrap.style.transition = 'opacity .35s ease .22s';                // 버튼이 어느 정도 옅어진 뒤에야 뒤쪽 글씨가 나타난다
-    me.style.transition = 'opacity .5s ease';
-    me.style.opacity = '0'; wrap.style.opacity = '1';
-    await wait(620);
+    await wait(450);
+    // 버튼이 선택 창과 똑같은 크기로 다 커진 순간: 같은 자리에서 버튼을 치우고 선택 창을 놓고, 글씨만 서서히 나타낸다
     modes.hidden = true; modes.className = 'modes'; [me, other].forEach((b) => { b.className = ''; b.style.cssText = ''; });
-    wrap.classList.remove('under'); wrap.style.cssText = ''; animating = false; refresh();
+    wrap.classList.remove('measure'); side.classList.add('reveal');
+    animating = false; refresh();
+    await wait(480);
+    side.classList.remove('reveal');
   }
   function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearPreset = null; }
   async function goHome() {
@@ -271,25 +269,23 @@
     const modes = $('modes'), wrap = $('wrap'), side = $('side'), m = mode;
     const me = $(m === 'time' ? 'modeTime' : 'modeUnit'), other = $(m === 'time' ? 'modeUnit' : 'modeTime');
     const H = side.getBoundingClientRect().height;
-    wrap.style.height = H + 'px'; wrap.classList.add('under');       // 목록이 열려 있어도 선택 창만 남긴다
-    modes.hidden = false;
+    wrap.classList.add('fadeout');                                   // 선택 창 글씨(와 목록)만 서서히 지운다
+    await wait(330);
+    // 빈 선택 창과 같은 크기의 버튼으로 같은 자리에서 바꿔치기
     modes.classList.add('notrans', m === 'time' ? 'go-left' : 'go-right');
     me.classList.add('fading'); other.classList.add('fading', 'gone');
     [me, other].forEach((b) => { b.style.aspectRatio = 'auto'; b.style.height = H + 'px'; });
-    me.style.borderRadius = '10px'; me.style.opacity = '0';
+    me.style.borderRadius = '10px';
+    modes.hidden = false; wrap.hidden = true;
     void modes.offsetWidth; modes.classList.remove('notrans');
     await nextFrame();
-    me.style.transition = 'opacity .22s ease'; wrap.style.transition = 'opacity .16s ease';
-    me.style.opacity = '1'; wrap.style.opacity = '0';                // 선택 창은 재빨리 지우고 버튼이 덮는다
-    await wait(260);
-    wrap.style.visibility = 'hidden'; me.style.transition = '';
     const sq = (modes.getBoundingClientRect().width - 10) / 2;       // 다시 정사각형 두 칸으로 줄어든다
     modes.classList.remove('go-left', 'go-right');
     me.classList.remove('fading'); other.classList.remove('fading', 'gone');
     [me, other].forEach((b) => { b.style.height = sq + 'px'; }); me.style.borderRadius = '';
     await wait(450);
     modes.className = 'modes'; [me, other].forEach((b) => { b.className = ''; b.style.cssText = ''; });
-    wrap.classList.remove('under'); wrap.style.cssText = '';
+    wrap.classList.remove('fadeout');
     resetState(); animating = false; refresh();
   }
 

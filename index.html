@@ -44,8 +44,12 @@
   .modes button.fading { color:transparent; }
   .modes button.gone { opacity:0; padding:0; border-width:0; }
   .modes.notrans, .modes.notrans button { transition:none !important; }
-  .wrap.measure, .wrap.under { position:absolute; top:4px; left:0; right:0; z-index:1; overflow:hidden; }
-  .wrap.measure { visibility:hidden; }
+  .wrap.measure { position:absolute; top:4px; left:0; right:0; visibility:hidden; }
+  .wrap.measure * { visibility:hidden !important; }
+  @keyframes fin { from { opacity:0; } to { opacity:1; } }
+  @keyframes fout { from { opacity:1; } to { opacity:0; } }
+  .side.reveal > * { animation:fin .45s ease both; }
+  .wrap.fadeout > .side > *, .wrap.fadeout > #mainWrap { animation:fout .3s ease both; }
   @media (prefers-reduced-motion: reduce) { .modes, .modes button { transition:none; } }
   .modes button .bd { font-size:12px; font-weight:600; margin-left:6px; opacity:.85; }
   .modes button { aspect-ratio:1 / 1; padding:10px; font-size:17px; font-weight:700; border-radius:14px; }
