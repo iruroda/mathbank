@@ -3,72 +3,105 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>전국연합 학력평가 문제은행</title>
+<title>MATH BANK</title>
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2433; --sub:#5b6477; --line:#dde1e8; --acc:#2456d6; --acc2:#e8eefc; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#14171d; --card:#1c2029; --ink:#e8ebf2; --sub:#9aa3b5; --line:#2c3240; --acc:#7da2ff; --acc2:#222c45; } }
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2433; --sub:#5b6477; --line:#dde1e8; --acc:#2456d6; --acc2:#e8eefc; --shadow:rgba(20,30,50,.45); }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171d; --card:#1c2029; --ink:#e8ebf2; --sub:#9aa3b5; --line:#2c3240; --acc:#7da2ff; --acc2:#222c45; --shadow:rgba(0,0,0,.65); } }
   * { box-sizing: border-box; }
   body { margin:0; font-family: "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif; background:var(--bg); color:var(--ink); }
-  header { padding:14px 20px; border-bottom:1px solid var(--line); background:var(--card); display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
-  header h1 { font-size:18px; margin:0; }
-  header span { color:var(--sub); font-size:13px; }
-  .wrap { display:grid; grid-template-columns: 290px 1fr; gap:16px; padding:16px 20px; align-items:start; }
-  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
-  .filters { position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; }
+  .page { max-width:760px; margin:0 auto; padding:0 12px 24px; }          /* 태블릿·모바일 세로 기준 폭 */
+  header { padding:14px 4px 10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  header h1 { font-size:22px; margin:0; letter-spacing:.08em; font-weight:800; }
+  header .meta { color:var(--sub); font-size:12px; }
+  header .spacer { flex:1; }
+  button { font:inherit; font-size:13px; padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--acc); }
+  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:600; }
+  button:disabled { opacity:.45; cursor:default; }
+  .modes { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:2px 0 12px; }
+  .modes button { padding:16px 10px; font-size:16px; font-weight:700; border-radius:12px; }
+  .modes button.on { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .wrap { display:grid; grid-template-columns: 270px 1fr; gap:12px; align-items:start; }
+  @media (max-width: 640px) { .wrap { grid-template-columns: 1fr; } .page { padding:0 8px 20px; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .side { display:flex; flex-direction:column; position:sticky; top:8px; max-height:calc(100vh - 16px); padding:0; overflow:hidden; }
+  @media (max-width: 640px) { .side { position:static; max-height:none; } }
+  .filters { padding:12px; overflow:auto; flex:1; }
   .filters h3 { font-size:13px; margin:12px 0 6px; color:var(--sub); font-weight:600; }
   .filters h3:first-child { margin-top:0; }
-  .chk { display:flex; gap:6px; align-items:center; font-size:13px; padding:2px 0; }
-  .chk .n { margin-left:auto; color:var(--sub); font-size:12px; }
-  .grp { font-size:12px; color:var(--sub); margin:8px 0 2px; font-weight:600; }
-  .bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
-  button { font:inherit; font-size:13px; padding:7px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
-  button.primary { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:600; }
-  button:disabled { opacity:.5; cursor:default; }
-  input[type=text], select { font:inherit; font-size:13px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--sub); font-weight:600; position:sticky; top:0; background:var(--card); }
-  tr.sel td { background:var(--acc2); }
-  .opts { display:grid; grid-template-columns: 1fr 1fr; gap:8px 12px; font-size:13px; margin-top:10px; }
-  .opts label { display:flex; flex-direction:column; gap:3px; color:var(--sub); }
-  .opts .full { grid-column:1 / -1; }
-  #status { font-size:13px; color:var(--sub); }
-  .pill { display:inline-block; font-size:11px; padding:1px 7px; border-radius:99px; background:var(--acc2); color:var(--acc); }
+  .grp { font-size:12px; color:var(--sub); margin:8px 0 4px; font-weight:600; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { display:inline-flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 10px; font-size:13px; border-radius:8px; }
+  .chip .n { color:var(--sub); font-size:12px; }
+  .chip.on { background:var(--acc); border-color:var(--acc); color:#fff; }
+  .chip.on .n { color:#dfe8ff; }
+  .chip.zero { opacity:.4; }
+  .sidefoot { border-top:1px solid var(--line); padding:10px 12px; display:flex; flex-direction:column; gap:8px; background:var(--card); }
+  .sidefoot button { width:100%; padding:10px; }
+  .sidefoot button.on { background:var(--acc2); border-color:var(--acc); color:var(--acc); font-weight:600; }
+  #status { font-size:12px; color:var(--sub); text-align:center; min-height:1em; }
+  .sum h3 { margin:0 0 8px; font-size:14px; }
+  .sum .hint { color:var(--sub); font-size:13px; line-height:1.6; }
+  .sum .rowx { display:flex; align-items:center; gap:8px; margin:6px 0; flex-wrap:wrap; }
+  .sum .rowx b { font-size:12px; color:var(--sub); min-width:64px; font-weight:600; }
+  .sum .linkbtn { border:none; background:none; color:var(--acc); padding:4px 0; font-size:12px; }
+  .listhead { display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--sub); margin-bottom:6px; }
+  .list { max-height:75vh; overflow:auto; }
+  .item { display:flex; gap:10px; padding:9px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .item:last-child { border-bottom:none; }
+  .item input { margin-top:3px; flex:none; }
+  .item .t { font-size:13px; font-weight:600; }
+  .item .t small { font-weight:400; color:var(--sub); }
+  .item .m { font-size:12px; color:var(--sub); margin-top:2px; }
+  .item .s { font-size:13px; margin-top:2px; }
+  .item.off { opacity:.45; }
+  /* 양식 편집 팝업 */
+  .overlay { position:fixed; inset:0; background:var(--shadow); display:none; align-items:center; justify-content:center; z-index:50; padding:12px; }
+  .overlay.show { display:flex; }
+  .modal { background:var(--card); border:1px solid var(--line); border-radius:12px; width:100%; max-width:520px; padding:16px; position:relative; max-height:92vh; overflow:auto; }
+  .modal h2 { font-size:16px; margin:0 28px 12px 0; }
+  .modal .x { position:absolute; top:10px; right:10px; width:32px; height:32px; padding:0; font-size:18px; line-height:1; border:none; background:none; color:var(--sub); }
+  .modal label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--sub); margin-bottom:10px; }
+  .modal input[type=text], .modal select { font:inherit; font-size:14px; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); width:100%; }
+  .modal .btns { display:flex; justify-content:flex-end; gap:8px; margin-top:6px; }
+  .modal .btns button { min-width:76px; padding:9px 14px; }
 </style>
 </head>
 <body>
-<header>
-  <h1>전국연합 학력평가 문제은행</h1>
-  <span id="meta">불러오는 중…</span>
-</header>
-<div class="wrap">
-  <aside class="card filters" id="filters"></aside>
-  <main>
-    <div class="card">
-      <div class="bar">
-        <button id="btnAll">결과 전체 선택</button>
-        <button id="btnNone">선택 해제</button>
-        <span id="count"></span>
-      </div>
-      <div class="opts">
-        <label class="full">문제지 제목<input type="text" id="optTitle" value="전국연합 학력평가 단원별 연습"></label>
-        <label class="full">쪽 아래 문구<input type="text" id="optFooter" value="우리는 알아야만 한다. 우리는 알게 될 것이다. - David Hilbert"></label>
-        <label>문제 배치<select id="optLayout"><option value="auto">혼합 (2·3점은 한 단에 2문제, 4점은 한 단에 1문제)</option><option value="full">항상 한 단에 1문제 (쪽당 2문제)</option><option value="half">가능하면 항상 한 단에 2문제 (쪽당 4문제)</option></select></label>
-        <label>해설<select id="optSol"><option value="1">미주로 포함</option><option value="0">문제만</option></select></label>
-      </div>
-      <div class="bar" style="margin-top:12px">
+<div class="page">
+  <header>
+    <h1>MATH BANK</h1>
+    <span class="meta" id="meta">2026. 10. 6. updated</span>
+    <span class="spacer"></span>
+    <button id="btnForm">양식 편집</button>
+  </header>
+  <div class="modes">
+    <button id="modeTime" class="on">출제 시기별</button>
+    <button id="modeUnit">단원별</button>
+  </div>
+  <div class="wrap">
+    <aside class="card side">
+      <div class="filters" id="filters"></div>
+      <div class="sidefoot">
+        <button id="btnDetail">세부 설정</button>
         <button class="primary" id="btnMake" disabled>PDF 만들기</button>
-        <span id="status"></span>
+        <div id="status"></div>
       </div>
-    </div>
-    <div class="card" style="margin-top:14px; overflow:auto; max-height:70vh">
-      <table>
-        <thead><tr><th></th><th>시험</th><th>구분</th><th>과목 &gt; 단원</th><th>배점</th><th>형식</th><th>문항 요지</th></tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-  </main>
+    </aside>
+    <main class="card" id="main"></main>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <button class="x" id="mX" aria-label="닫기">✕</button>
+    <h2 id="mTitle">양식 편집</h2>
+    <label>문제지 제목<input type="text" id="optTitle"></label>
+    <label>쪽 아래 문구<input type="text" id="optFooter"></label>
+    <label>문제 배치<select id="optLayout"><option value="auto">혼합 (2·3점은 한 단에 2문제, 4점은 한 단에 1문제)</option><option value="full">항상 한 단에 1문제 (쪽당 2문제)</option><option value="half">가능하면 항상 한 단에 2문제 (쪽당 4문제)</option></select></label>
+    <label>해설<select id="optSol"><option value="1">미주로 포함</option><option value="0">문제만</option></select></label>
+    <div class="btns"><button id="mCancel">취소</button><button class="primary" id="mOk">확인</button></div>
+  </div>
 </div>
 <script src="js/layout.js"></script>
 <script src="js/app.js"></script>

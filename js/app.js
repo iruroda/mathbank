@@ -3,18 +3,19 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const SEC_RANK = { '공통': 0, '확률과 통계': 1, '미적분': 2, '기하': 3 };
-  const FIELDS = [
-    ['year', '연도', (p) => p.year + '년'],
-    ['grade', '학년', (p) => p.grade + '학년'],
-    ['month', '시행월', (p) => p.month + '월'],
-    ['form', '형(가/나)', (p) => (p.form ? p.form + '형' : '해당 없음')],
-    ['sec', '구분', (p) => p.sec],
-    ['subject', '과목', (p) => p.subject],
-    ['unit', '단원', (p) => p.subject + '|' + p.unit],
-    ['points', '배점', (p) => (p.points == null ? '-' : p.points + '점')],
-    ['type', '형식', (p) => p.type],
+  const FIELDS = [   // [키, 이름, 값 함수, 분류(time=출제 시기별 / unit=단원별)]
+    ['year', '연도', (p) => p.year + '년', 'time'],
+    ['grade', '학년', (p) => p.grade + '학년', 'time'],
+    ['month', '시행월', (p) => p.month + '월', 'time'],
+    ['form', '형(가/나)', (p) => (p.form ? p.form + '형' : '해당 없음'), 'time'],
+    ['sec', '구분', (p) => p.sec, 'time'],
+    ['subject', '과목', (p) => p.subject, 'unit'],
+    ['unit', '단원', (p) => p.subject + '|' + p.unit, 'unit'],
+    ['points', '배점', (p) => (p.points == null ? '-' : p.points + '점'), 'unit'],
+    ['type', '형식', (p) => p.type, 'unit'],
   ];
-  let DATA = null, ALL = [], filters = {}, selected = new Set();
+  let DATA = null, ALL = [], filters = {}, excluded = new Set(), mode = 'time', detail = false;
+  const opts = { title: '전국연합 학력평가 단원별 연습', footer: '우리는 알아야만 한다. 우리는 알게 될 것이다. - David Hilbert', layout: 'auto', sol: '1' };
 
   const cmp = (a, b) => a.year - b.year || a.grade - b.grade || a.month - b.month || (a.form || '').localeCompare(b.form || '', 'ko') || SEC_RANK[a.sec] - SEC_RANK[b.sec] || a.n - b.n;
 
@@ -27,62 +28,120 @@
     return true;
   }
 
+  const activeCount = () => Object.values(filters).reduce((n, st) => n + (st ? st.size : 0), 0);
+  const picked = () => visible().filter((p) => !excluded.has(p.id));
+
   function renderFilters() {
     const box = $('filters'); box.innerHTML = '';
-    FIELDS.forEach(([k, label, f]) => {
+    FIELDS.filter((f) => f[3] === mode).forEach(([k, label, f]) => {
       const h = document.createElement('h3'); h.textContent = label; box.appendChild(h);
       const counts = new Map();
       ALL.forEach((p) => { if (matches(p, k)) counts.set(f(p), (counts.get(f(p)) || 0) + 1); });
       const keys = [...new Set(ALL.map(f))];
       const UO = (DATA.units || []).map((u) => u[0] + '|' + u[1]);
       const rank = (v) => { const i = UO.indexOf(v); return i < 0 ? 999 : i; };
+      let wrap = document.createElement('div'); wrap.className = 'chips'; box.appendChild(wrap);
       if (k === 'unit') {                       // 단원은 과목별로 묶어서 표시 (성취기준 파일 순서)
         keys.sort((a, b) => rank(a) - rank(b));
-        let last = null;
+        box.removeChild(wrap); let last = null;
         keys.forEach((v) => {
           const [sub, un] = v.split('|');
-          if (sub !== last) { const g = document.createElement('div'); g.className = 'grp'; g.textContent = sub; box.appendChild(g); last = sub; }
-          box.appendChild(chk(k, v, counts.get(v) || 0, un));
+          if (sub !== last) { const g = document.createElement('div'); g.className = 'grp'; g.textContent = sub; box.appendChild(g); wrap = document.createElement('div'); wrap.className = 'chips'; box.appendChild(wrap); last = sub; }
+          wrap.appendChild(chip(k, v, counts.get(v) || 0, un));
         });
         return;
       }
       if (k === 'subject') keys.sort((a, b) => Math.min(...UO.map((u, i) => (u.split('|')[0] === a ? i : 999))) - Math.min(...UO.map((u, i) => (u.split('|')[0] === b ? i : 999))));
       else keys.sort((a, b) => String(a).localeCompare(String(b), 'ko', { numeric: true }));
-      keys.forEach((v) => box.appendChild(chk(k, v, counts.get(v) || 0)));
+      keys.forEach((v) => wrap.appendChild(chip(k, v, counts.get(v) || 0)));
     });
   }
-  function chk(k, v, n, label) {
-    const l = document.createElement('label'); l.className = 'chk';
-    const i = document.createElement('input'); i.type = 'checkbox';
-    i.checked = !!(filters[k] && filters[k].has(v));
-    i.onchange = () => { (filters[k] = filters[k] || new Set())[i.checked ? 'add' : 'delete'](v); refresh(); };
-    l.append(i, document.createTextNode(' ' + (label || v)));
-    const s = document.createElement('span'); s.className = 'n'; s.textContent = n; l.appendChild(s);
-    return l;
+  function chip(k, v, n, label) {
+    const on = !!(filters[k] && filters[k].has(v));
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (on ? ' on' : '') + (n === 0 && !on ? ' zero' : '');
+    const l = document.createElement('span'); l.textContent = label || v;
+    const c = document.createElement('span'); c.className = 'n'; c.textContent = n;
+    b.append(l, c);
+    b.onclick = () => { (filters[k] = filters[k] || new Set())[on ? 'delete' : 'add'](v); refresh(); };
+    return b;
   }
 
   function visible() { return ALL.filter((p) => matches(p, null)); }
 
-  function renderRows() {
-    const tb = $('rows'); tb.innerHTML = '';
-    const vis = visible();
+  function renderMain() {
+    const m = $('main'); m.innerHTML = '';
+    if (!detail) {                                          // 조건 요약
+      const d = document.createElement('div'); d.className = 'sum';
+      d.innerHTML = '<h3>선택한 조건</h3>';
+      if (!activeCount()) {
+        const t = document.createElement('div'); t.className = 'hint';
+        t.innerHTML = '왼쪽 메뉴에서 조건을 골라보세요.<br>출제 시기별과 단원별 조건은 함께 적용돼요.<br>조건을 고른 뒤 <b>PDF 만들기</b>를 누르면 조건에 맞는 문제로 문제지가 만들어지고, <b>세부 설정</b>에서는 문제를 하나씩 빼거나 넣을 수 있어요.';
+        d.appendChild(t);
+      } else {
+        FIELDS.forEach(([k, label, f]) => {
+          const st = filters[k]; if (!st || !st.size) return;
+          const r = document.createElement('div'); r.className = 'rowx';
+          const b = document.createElement('b'); b.textContent = label; r.appendChild(b);
+          [...st].forEach((v) => {
+            const c = document.createElement('button'); c.className = 'chip on'; c.type = 'button';
+            c.textContent = (k === 'unit' ? v.split('|')[1] : v) + '  ✕';
+            c.onclick = () => { st.delete(v); refresh(); };
+            r.appendChild(c);
+          });
+          d.appendChild(r);
+        });
+        const reset = document.createElement('button'); reset.className = 'linkbtn'; reset.textContent = '조건 모두 해제';
+        reset.onclick = () => { filters = {}; refresh(); };
+        d.appendChild(reset);
+      }
+      m.appendChild(d); return;
+    }
+    const vis = visible();                                  // 세부 설정: 문제 목록
+    const head = document.createElement('div'); head.className = 'listhead';
+    head.innerHTML = '<span>문제 목록 · 체크된 문제가 PDF에 들어가요</span><span>' + picked().length + ' / ' + vis.length + '</span>';
+    m.appendChild(head);
+    const list = document.createElement('div'); list.className = 'list'; m.appendChild(list);
+    if (!vis.length) { list.innerHTML = '<div class="hint" style="color:var(--sub);font-size:13px;padding:8px 2px">조건에 맞는 문제가 없어요.</div>'; return; }
     vis.forEach((p) => {
-      const tr = document.createElement('tr'); if (selected.has(p.id)) tr.className = 'sel';
-      const td0 = document.createElement('td'); const c = document.createElement('input'); c.type = 'checkbox'; c.checked = selected.has(p.id);
-      c.onchange = () => { c.checked ? selected.add(p.id) : selected.delete(p.id); tr.className = c.checked ? 'sel' : ''; updateCount(); };
-      td0.appendChild(c); tr.appendChild(td0);
-      const cells = [`${p.year}년 ${p.month}월 ${p.grade}학년${p.form ? '(' + p.form + '형)' : ''} ${p.n}번${p.also ? ' (=' + p.also + ')' : ''}`, p.sec === '공통' ? '공통' : p.sec, `${p.subject} > ${p.unit}`, p.points == null ? '-' : p.points + '점', p.type, p.summary];
-      cells.forEach((t) => { const td = document.createElement('td'); td.textContent = t; tr.appendChild(td); });
-      tr.onclick = (e) => { if (e.target !== c) { c.checked = !c.checked; c.onchange(); } };
-      tb.appendChild(tr);
+      const row = document.createElement('div'); row.className = 'item' + (excluded.has(p.id) ? ' off' : '');
+      const c = document.createElement('input'); c.type = 'checkbox'; c.checked = !excluded.has(p.id);
+      c.onchange = () => { c.checked ? excluded.delete(p.id) : excluded.add(p.id); row.className = 'item' + (c.checked ? '' : ' off'); head.lastChild.textContent = picked().length + ' / ' + vis.length; updateButtons(); };
+      const box = document.createElement('div');
+      const t = document.createElement('div'); t.className = 't';
+      t.textContent = `${p.year}년 ${p.month}월 ${p.grade}학년${p.form ? '(' + p.form + '형)' : ''} ${p.n}번`;
+      if (p.also) { const sm = document.createElement('small'); sm.textContent = ' (=' + p.also + ')'; t.appendChild(sm); }
+      const mt = document.createElement('div'); mt.className = 'm';
+      mt.textContent = [p.sec === '공통' ? null : p.sec, `${p.subject} › ${p.unit}`, p.points == null ? null : p.points + '점', p.type].filter(Boolean).join(' · ');
+      const sm = document.createElement('div'); sm.className = 's'; sm.textContent = p.summary;
+      box.append(t, mt, sm); row.append(c, box);
+      row.onclick = (e) => { if (e.target !== c) { c.checked = !c.checked; c.onchange(); } };
+      list.appendChild(row);
     });
-    updateCount();
   }
-  function updateCount() {
-    $('count').innerHTML = `조건에 맞는 문제 <b>${visible().length}</b>개 · 선택 <span class="pill">${selected.size}</span>개`;
-    $('btnMake').disabled = selected.size === 0;
+  function updateButtons() {
+    $('btnMake').disabled = !activeCount() || picked().length === 0;
+    $('btnDetail').className = detail ? 'on' : '';
+    $('btnDetail').textContent = detail ? '세부 설정 닫기' : '세부 설정';
+    $('modeTime').className = mode === 'time' ? 'on' : ''; $('modeUnit').className = mode === 'unit' ? 'on' : '';
+    if (!$('status').dataset.busy) $('status').textContent = activeCount() ? '' : '조건을 먼저 선택하세요';
   }
-  function refresh() { renderFilters(); renderRows(); }
+  function refresh() { renderFilters(); renderMain(); updateButtons(); }
+  function setMode(m) { mode = m; detail = false; refresh(); }
+
+  /* ---------- 양식 편집 팝업 ---------- */
+  function openForm() {
+    $('optTitle').value = opts.title; $('optFooter').value = opts.footer; $('optLayout').value = opts.layout; $('optSol').value = opts.sol;
+    $('overlay').classList.add('show'); $('optTitle').focus(); $('optTitle').select();
+  }
+  function closeForm(save) {
+    if (save) { opts.title = $('optTitle').value; opts.footer = $('optFooter').value; opts.layout = $('optLayout').value; opts.sol = $('optSol').value; }
+    $('overlay').classList.remove('show'); $('btnForm').focus();
+  }
+  document.addEventListener('keydown', (e) => {
+    if (!$('overlay').classList.contains('show')) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeForm(false); }
+    else if (e.key === 'Enter') { e.preventDefault(); closeForm(true); }
+  });
 
   /* ---------- PDF 생성 ---------- */
   function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
@@ -168,33 +227,34 @@
   }
 
   async function make() {
-    const btn = $('btnMake'); btn.disabled = true;
+    const btn = $('btnMake'); btn.disabled = true; $('status').dataset.busy = '1';
     try {
       $('status').textContent = 'PDF 라이브러리 준비 중…';
       await ensurePdfLib();
-      const picked = ALL.filter((p) => selected.has(p.id)).sort(cmp);
-      const plan = Layout.buildPlan(picked, DATA.exams, {
-        title: $('optTitle').value, footer: $('optFooter').value,
-        layout: $('optLayout').value, solutions: $('optSol').value === '1',
+      const list = picked().sort(cmp);
+      const plan = Layout.buildPlan(list, DATA.exams, {
+        title: opts.title, footer: opts.footer, layout: opts.layout, solutions: opts.sol === '1',
       });
       const bytes = await renderPlan(plan, (d, n) => { $('status').textContent = `만드는 중… ${d}/${n}쪽`; });
       const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-      const a = document.createElement('a'); a.href = url; a.download = ($('optTitle').value || '문제지') + '.pdf'; a.click();
+      const a = document.createElement('a'); a.href = url; a.download = (opts.title || '문제지') + '.pdf'; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
-      $('status').textContent = `완료: ${picked.length}문제 / ${plan.pages.length}쪽`;
+      $('status').textContent = `완료: ${list.length}문제 / ${plan.pages.length}쪽`;
     } catch (e) {
       console.error(e); $('status').textContent = '오류: ' + e.message;
-    } finally { btn.disabled = selected.size === 0; }
+    } finally { delete $('status').dataset.busy; updateButtons(); }
   }
 
   async function init() {
     const r = await fetch('data/problems.json'); DATA = await r.json();
     ALL = DATA.problems.slice().sort(cmp);
-    $('meta').textContent = `문제 ${ALL.length}개 · 시험 ${Object.keys(DATA.exams).length}회`;
-    $('btnAll').onclick = () => { visible().forEach((p) => selected.add(p.id)); renderRows(); };
-    $('btnNone').onclick = () => { selected.clear(); renderRows(); };
+    $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
+    $('btnDetail').onclick = () => { detail = !detail; refresh(); };
     $('btnMake').onclick = make;
+    $('btnForm').onclick = openForm;
+    $('mOk').onclick = () => closeForm(true); $('mCancel').onclick = () => closeForm(false); $('mX').onclick = () => closeForm(false);
+    $('overlay').addEventListener('mousedown', (e) => { if (e.target === $('overlay')) closeForm(false); });
     refresh();
   }
-  init().catch((e) => { $('meta').textContent = '데이터를 불러오지 못했어요: ' + e.message + ' (로컬에서 열 땐 python -m http.server 로 실행하세요)'; });
+  init().catch((e) => { $('status').textContent = '데이터를 불러오지 못했어요: ' + e.message + ' (로컬에서 열 땐 python -m http.server 로 실행하세요)'; });
 })();
