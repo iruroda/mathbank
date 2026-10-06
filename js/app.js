@@ -3,107 +3,111 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const SEC_RANK = { '공통': 0, '확률과 통계': 1, '미적분': 2, '기하': 3 };
-  const FIELDS = [   // [키, 이름, 값 함수, 분류(time=출제 시기별 / unit=단원별)]
-    ['grade', '학년', (p) => p.grade + '학년', 'time'],
-    ['year', '연도', (p) => p.year + '년', 'time'],
-    ['month', '월', (p) => p.month + '월', 'time'],
-    ['form', '가형/나형', (p) => (p.form ? p.form + '형' : '해당 없음'), 'time'],
-    ['sec', '선택', (p) => p.sec, 'time'],
-    ['subject', '과목', (p) => p.subject, 'unit'],
-    ['unit', '단원', (p) => p.subject + '|' + p.unit, 'unit'],
-    ['points', '배점', (p) => (p.points == null ? '-' : p.points + '점'), 'extra'],
-    ['type', '문제 유형', (p) => typeName(p.type), 'extra'],
+  const FIELDS = [   // [키, 이름, 값 함수]  (과목별 단원 묶음 'u:과목'은 데이터를 읽은 뒤 추가)
+    ['grade', '학년', (p) => p.grade + '학년'],
+    ['year', '연도', (p) => p.year + '년'],
+    ['month', '월', (p) => p.month + '월'],
+    ['form', '가형/나형(2020)', (p) => (p.form ? p.form + '형' : '해당 없음')],
+    ['sec', '선택과목(2021-2022)', (p) => p.sec],
+    ['subject', '과목', (p) => subjDisp(p.subject)],
+    ['points', '배점', (p) => (p.points == null ? '-' : p.points + '점')],
+    ['type', '문제 유형', (p) => typeName(p.type)],
   ];
-  const typeName = (t) => (t === '선택형' ? '5지선다형' : t);
-  const TYPE_ORDER = ['5지선다형', '단답형'];
+  const MID_SUBJECTS = ['수학 1', '수학 2', '수학 3'];
+  const subjDisp = (s) => (MID_SUBJECTS.includes(s) ? '중학교 수학' : s);
+  const typeName = (t) => t;
+  const TYPE_ORDER = ['선택형', '단답형'];
   let DATA = null, ALL = [], filters = {}, allOn = new Set(), excluded = new Set(), mode = null, detail = false, query = '', moreOpen = false, busy = false;
   const opts = { title: '전국연합 및 모의평가 기출 연습문제', footer: '우리는 알아야만 한다. 우리는 알게 될 것이다. - David Hilbert', layout: 'auto', sol: '1' };
 
   const cmp = (a, b) => a.year - b.year || a.grade - b.grade || a.month - b.month || (a.form || '').localeCompare(b.form || '', 'ko') || SEC_RANK[a.sec] - SEC_RANK[b.sec] || a.n - b.n;
 
   // 한 묶음(그룹)에서 '전체' 알약이 켜져 있으면 그 그룹은 제한 없음, 아니면 고른 칩만 해당. 둘 다 없으면 아직 고르지 않은 상태.
-  const REQ = [['grade'], ['year'], ['month'], ['form'], ['sec'], ['subject', 'unit'], ['points'], ['type']];
-  const FN = Object.fromEntries(FIELDS.map((f) => [f[0], f[2]]));
+  let FN = {}, SUBJ_ORDER = [], DISP_ORDER = [];
   const isAll = (k) => allOn.has(k);
   const isSel = (k) => !!(filters[k] && filters[k].size);
+  const inc = (k, v) => isAll(k) || !!(filters[k] && filters[k].has(v));
   const isActive = (k) => isAll(k) || isSel(k);
-  // 칩 개수 계산용: 고르지 않은 그룹은 제한 없음으로 본다
-  function matches(p, skip) {
-    for (const k of Object.keys(FN)) {
-      if (k === skip || isAll(k)) continue;
-      const set = filters[k];
-      if (set && set.size && !set.has(FN[k](p))) return false;
-    }
-    return true;
+  const fieldOf = (k) => FIELDS.find((f) => f[0] === k);
+  // 화면에 보이는 묶음(모드별 순서). 과목/단원 모드: 과목, 연도, 그리고 고른 과목의 단원 묶음들
+  function modeKeys(m) {
+    return m === 'time' ? ['grade', 'year', 'month', 'form', 'sec'] : ['subject', 'year', ...SUBJ_ORDER.map((s) => 'u:' + s)];
   }
-  const fieldCat = (k) => FIELDS.find((f) => f[0] === k)[3];
-  // 지금 화면에 보이는 그룹
   function shownKeys() {
     if (!mode) return [];
-    return FIELDS.filter((f) => (f[3] === mode || (moreOpen && f[3] === 'extra')) && !(GATE[f[0]] && !GATE[f[0]]())).map((f) => f[0]);
+    const ks = modeKeys(mode).filter((k) => !(GATE[k] && !GATE[k]()));
+    return moreOpen ? ks.concat(['points', 'type']) : ks;
   }
-  // 실제 결과: 보이는 그룹마다 '전체' 또는 칩 선택이 있어야 하고, 고른 칩 조건을 모두 만족해야 한다
+  // 실제 결과: 보이는 묶음마다 '전체' 또는 칩 선택이 있어야 하고, 고른 칩 조건을 모두 만족해야 한다
   function strictMatch(p, shown) {
-    for (const grp of REQ) {
-      const ks = grp.filter((k) => shown.includes(k));
-      if (!ks.length) continue;
-      if (!ks.some(isActive)) return false;
-      for (const k of ks) { if (isAll(k)) continue; const set = filters[k]; if (set && set.size && !set.has(FN[k](p))) return false; }
+    for (const k of shown) {
+      if (!isActive(k)) return false;
+      if (isAll(k)) continue;
+      const v = FN[k](p);
+      if (v === null) continue;                 // 다른 과목의 단원 묶음은 이 문제와 무관
+      if (!filters[k].has(v)) return false;
     }
     return true;
   }
   const picked = () => visible().filter((p) => !excluded.has(p.id));
 
-  // 가형/나형, 선택은 학년을 골랐고 그 조건에 해당 문제가 있을 때만 보인다
+  // 가형/나형은 3학년+2020년, 선택과목은 3학년+2021·2022년, 단원 묶음은 그 과목을 골랐을 때만 보인다
   const GATE = {
-    form: () => isActive('grade') && ALL.some((p) => p.form && matches(p, 'form')),
-    sec: () => isActive('grade') && ALL.some((p) => p.sec !== '공통' && matches(p, 'sec')),
+    form: () => inc('grade', '3학년') && inc('year', '2020년'),
+    sec: () => inc('grade', '3학년') && (inc('year', '2021년') || inc('year', '2022년')),
   };
   function renderFilters() {
     const box = $('filters'); box.innerHTML = ''; $('extras').innerHTML = '';
     if (!mode) return;
     for (const k of Object.keys(GATE)) if (!GATE[k]()) { delete filters[k]; allOn.delete(k); }   // 숨겨지는 조건은 해제
-    renderGroups(box, FIELDS.filter((f) => f[3] === mode));
-    if (moreOpen) FIELDS.filter((f) => f[3] === 'extra').forEach((fd) => { const d = document.createElement('div'); renderGroups(d, [fd]); $('extras').appendChild(d); });
+    renderGroups(box, modeKeys(mode));
+    if (moreOpen) ['points', 'type'].forEach((k) => { const d = document.createElement('div'); renderGroups(d, [k]); $('extras').appendChild(d); });
   }
-  function renderGroups(box, fields) {
-    fields.forEach(([k, label, f]) => {
+  const sameSet = (x, y) => x.size === y.size && [...x].every((v) => y.has(v));
+  function renderGroups(box, fkeys) {
+    const UO = (DATA.units || []).map((u) => u[0] + '|' + u[1]);
+    const rank = (s, u) => { const i = UO.indexOf(s + '|' + u); return i < 0 ? 999 : i; };
+    fkeys.forEach((k) => {
       if (GATE[k] && !GATE[k]()) return;
-      const h = document.createElement('h3'); const hl = document.createElement('span'); hl.textContent = label; h.appendChild(hl);
-      const ab = document.createElement('button'); ab.type = 'button'; ab.className = 'allbtn' + (isAll(k) ? ' on' : ''); ab.textContent = '전체';
-      h.appendChild(ab); box.appendChild(h);
-      const counts = new Map();
-      ALL.forEach((p) => { if (matches(p, k)) counts.set(f(p), (counts.get(f(p)) || 0) + 1); });
-      const keys = [...new Set(ALL.map(f))].filter((v) => !(k === 'form' && v === '해당 없음'));
-      ab.onclick = () => { if (isAll(k)) allOn.delete(k); else allOn.add(k); delete filters[k]; refresh(); };
-      const UO = (DATA.units || []).map((u) => u[0] + '|' + u[1]);
-      const rank = (v) => { const i = UO.indexOf(v); return i < 0 ? 999 : i; };
-      let wrap = document.createElement('div'); wrap.className = 'chips'; box.appendChild(wrap);
-      if (k === 'unit') {                       // 단원은 과목별로 묶어서 표시 (성취기준 파일 순서)
-        keys.sort((a, b) => rank(a) - rank(b));
-        box.removeChild(wrap); let last = null;
-        keys.forEach((v) => {
-          const [sub, un] = v.split('|');
-          if (sub !== last) { const g = document.createElement('div'); g.className = 'grp'; g.textContent = sub; box.appendChild(g); wrap = document.createElement('div'); wrap.className = 'chips'; box.appendChild(wrap); last = sub; }
-          wrap.appendChild(chip(k, v, counts.get(v) || 0, keys, un));
-        });
-        return;
+      let label, f, keys;
+      if (k.startsWith('u:')) {
+        const s = k.slice(2); label = s; f = (p) => p.unit;
+        keys = [...new Set(ALL.filter((p) => p.subject === s).map((p) => p.unit))].sort((x, y) => rank(s, x) - rank(s, y));
+      } else {
+        const fd = fieldOf(k); label = fd[1]; f = fd[2];
+        keys = [...new Set(ALL.map(f))].filter((v) => !(k === 'form' && v === '해당 없음'));
+        if (k === 'subject') keys.sort((x, y) => DISP_ORDER.indexOf(x) - DISP_ORDER.indexOf(y));
+        else if (k === 'type') keys.sort((x, y) => TYPE_ORDER.indexOf(x) - TYPE_ORDER.indexOf(y));
+        else if (k === 'sec') keys.sort((x, y) => SEC_RANK[x] - SEC_RANK[y]);
+        else keys.sort((x, y) => String(x).localeCompare(String(y), 'ko', { numeric: true }));
       }
-      if (k === 'subject') keys.sort((a, b) => Math.min(...UO.map((u, i) => (u.split('|')[0] === a ? i : 999))) - Math.min(...UO.map((u, i) => (u.split('|')[0] === b ? i : 999))));
-      else if (k === 'type') keys.sort((x, y) => TYPE_ORDER.indexOf(x) - TYPE_ORDER.indexOf(y));
-      else if (k === 'sec') keys.sort((x, y) => SEC_RANK[x] - SEC_RANK[y]);
-      else keys.sort((a, b) => String(a).localeCompare(String(b), 'ko', { numeric: true }));
-      keys.forEach((v) => wrap.appendChild(chip(k, v, counts.get(v) || 0, keys)));
+      const h = document.createElement('h3'); const hl = document.createElement('span'); hl.textContent = label; h.appendChild(hl);
+      const pill = (text, on, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'allbtn' + (on ? ' on' : ''); b.textContent = text; b.onclick = fn; h.appendChild(b); };
+      pill('전체', isAll(k), () => { if (isAll(k)) allOn.delete(k); else allOn.add(k); delete filters[k]; refresh(); });
+      if (k === 'year') {                       // 최근 N개년 (자료에 있는 가장 최근 연도 기준)
+        const maxY = Math.max(...ALL.map((p) => p.year));
+        [5, 3].forEach((n) => {
+          const target = new Set(keys.filter((v) => parseInt(v, 10) > maxY - n));
+          const cur = isAll(k) ? new Set(keys) : (filters[k] || new Set());
+          const on = target.size > 0 && sameSet(cur, target);
+          pill('최근 ' + n + '개년', on, () => {
+            if (on) { allOn.delete(k); delete filters[k]; }
+            else if (target.size === keys.length) { allOn.add(k); delete filters[k]; }
+            else { allOn.delete(k); filters[k] = target; }
+            refresh();
+          });
+        });
+      }
+      box.appendChild(h);
+      const wrap = document.createElement('div'); wrap.className = 'chips'; box.appendChild(wrap);
+      keys.forEach((v) => wrap.appendChild(chip(k, v, 0, keys)));
     });
   }
   function chip(k, v, n, allVals, label) {
     const on = isAll(k) || !!(filters[k] && filters[k].has(v));
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (on ? ' on' : '') + (n === 0 && !on ? ' zero' : '');
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip' + (on ? ' on' : '');
     const l = document.createElement('span'); l.textContent = label || v;
-    const c = document.createElement('span'); c.className = 'n'; c.textContent = n;
-    const maxN = ALL.reduce((s, p) => s + (FN[k](p) === v ? 1 : 0), 0);          // 이 칸에 들어갈 수 있는 가장 큰 수 기준으로 폭 고정
-    c.style.minWidth = 'calc(' + String(maxN).length + 'ch + 14px)';
-    b.append(l, c);
+    b.append(l);
     b.onclick = () => {
       let set;
       if (isAll(k)) { allOn.delete(k); set = new Set(allVals); set.delete(v); }       // 전체 상태에서 하나를 끄면 나머지만 선택
@@ -123,15 +127,17 @@
     $('main').hidden = false;
     const vis = visible();                                  // 문항 목록
     const head = document.createElement('div'); head.className = 'listhead';
-    head.innerHTML = '<label class="all"><input type="checkbox" id="chkAll"><span>전체선택</span></label>'
+    head.innerHTML = '<label class="all"><input type="checkbox" id="chkAll"><span>전체</span></label>'
       + '<div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>'
       + '<input type="text" id="qBox" autocomplete="off"><button type="button" id="qClr" aria-label="전체 지우기">✕</button></div>'
       + '<span class="cnt" id="cnt"></span>';
     m.appendChild(head);
     const list = document.createElement('div'); list.className = 'list'; m.appendChild(list);
+    const dg = Math.max(5, String(ALL.length).length);   // 최소 다섯 자리(만 단위) 기준
+     $('cnt').style.minWidth = (2 * dg + 3) + 'ch'; $('cnt').style.textAlign = 'right';   // 최대 문항수 기준으로 폭 고정
     const label = (p) => `${p.grade}학년${p.form ? '(' + p.form + '형)' : ''} ${p.year}년 ${p.month}월 ${p.n}번`;
     const metaParts = (p) => [p.sec === '공통' ? null : p.sec, `${p.subject} › ${p.unit}`, p.points == null ? null : p.points + '점', typeName(p.type)].filter(Boolean);
-    const meta = (p) => metaParts(p).join(' ');
+    const meta = (p) => metaParts(p).join(' · ');
     let shown = [];
     const sync = () => {
       const all = $('chkAll'), n = shown.filter((p) => !excluded.has(p.id)).length;
@@ -151,12 +157,10 @@
         const box = document.createElement('div'); box.className = 'box';
         const t = document.createElement('div'); t.className = 't'; t.textContent = label(p);
         if (p.also) { const sm = document.createElement('small'); sm.textContent = ' (=' + p.also + ')'; t.appendChild(sm); }
-        const vb = () => { const i = document.createElement('i'); i.className = 'vb'; return i; };
         const sm = document.createElement('div'); sm.className = 's'; sm.textContent = p.summary;
         box.append(t);
-        const parts = metaParts(p);
-        parts.forEach((s, ix) => { const e = document.createElement('div'); e.className = ix === (p.sec === '공통' ? 0 : 1) ? 'u' : 'k'; e.textContent = s; box.append(vb(), e); });
-        box.append(vb(), sm); row.append(c, box);
+        const mt = document.createElement('div'); mt.className = 'm'; mt.textContent = meta(p);
+        box.append(mt, sm); row.append(c, box);
         row.onclick = (e) => { if (e.target !== c) { c.checked = !c.checked; c.onchange(); } };
         list.appendChild(row);
       });
@@ -185,7 +189,7 @@
   /* ---------- 양식 편집 팝업 ---------- */
   function openForm() {
     $('optTitle').value = opts.title; $('optFooter').value = opts.footer; $('optLayout').value = opts.layout; $('optSol').value = opts.sol;
-    $('overlay').classList.add('show'); $('optTitle').focus(); $('optTitle').select();
+    $('overlay').classList.add('show'); if (document.activeElement) document.activeElement.blur();
   }
   function closeForm(save) {
     if (save) { opts.title = $('optTitle').value; opts.footer = $('optFooter').value; opts.layout = $('optLayout').value; opts.sol = $('optSol').value; }
@@ -209,7 +213,7 @@
 
   const TEXT_S = 4;   // 글자 이미지 해상도 배율
   function textImage(op) {
-    const font = `${op.italic ? 'italic ' : ''}${op.bold ? 'bold ' : ''}${op.size * TEXT_S}px "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif`;
+    const font = `${op.italic ? 'italic ' : ''}${op.bold ? 'bold ' : ''}${op.size * TEXT_S}px ${getComputedStyle(document.body).fontFamily}`;
     const c = document.createElement('canvas'); const g = c.getContext('2d');
     g.font = font; const w = Math.ceil(g.measureText(op.s).width) + 4;
     c.width = w; c.height = Math.ceil(op.size * 1.5 * TEXT_S);
@@ -309,11 +313,46 @@
     } finally { busy = false; updateButtons(); }
   }
 
+  /* 스크롤바 표시: 스크롤 중이거나(1초), 마우스가 화면 오른쪽 끝에 있을 때만 */
+  (function () {
+    const timers = new Map();
+    const show = (el) => { el.classList.add('sb'); clearTimeout(timers.get(el)); timers.set(el, setTimeout(() => el.classList.remove('sb'), 1000)); };
+    document.addEventListener('scroll', (e) => show(e.target === document ? document.documentElement : e.target), true);
+    document.addEventListener('mousemove', (e) => { if (e.clientX >= document.documentElement.clientWidth - 2) show(document.documentElement); });
+  })();
+
+  /* 헤더: 제목 대문자 높이를 재서 상자 높이로 쓰고, 각 글씨의 기준선이 상자 아래에 오도록 맞춘다 */
+  function alignHeader() {
+    const h1 = document.querySelector('header h1'), meta = document.querySelector('header .meta');
+    const tx = h1.querySelector('.tx'), cs = getComputedStyle(h1);
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const m = c.measureText('MATH BANK');
+    const H = Math.round((m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) * 10) / 10;
+    const hd = document.querySelector('header'); hd.style.setProperty('--th', H + 'px');
+    [h1, meta].forEach((box) => {
+      const t = box.querySelector('.tx'), p = t.querySelector('.bl');
+      box.style.setProperty('--d', '0px');
+      const d = t.getBoundingClientRect().bottom - p.getBoundingClientRect().bottom;   // 기준선에서 글자줄 아래까지 거리
+      box.style.setProperty('--d', d + 'px');
+    });
+  }
+  alignHeader();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(alignHeader);
+
   async function init() {
     const r = await fetch('data/problems.json'); DATA = await r.json();
     ALL = DATA.problems.slice().sort(cmp);
+    SUBJ_ORDER = [...new Set((DATA.units || []).map((u) => u[0]))];                // 성취기준 파일 순서
+    ALL.forEach((p) => { if (!SUBJ_ORDER.includes(p.subject)) SUBJ_ORDER.push(p.subject); });
+    const ix = SUBJ_ORDER.indexOf('확률과 통계'), at = SUBJ_ORDER.indexOf('대수');   // 확률과 통계를 대수 바로 다음에
+    if (ix >= 0 && at >= 0) { SUBJ_ORDER.splice(ix, 1); SUBJ_ORDER.splice(SUBJ_ORDER.indexOf('대수') + 1, 0, '확률과 통계'); }
+    DISP_ORDER = [...new Set(SUBJ_ORDER.map(subjDisp))];
+    SUBJ_ORDER.forEach((s) => { FIELDS.push(['u:' + s, s, (p) => (p.subject === s ? p.unit : null)]); GATE['u:' + s] = () => inc('subject', subjDisp(s)); });
+    FN = Object.fromEntries(FIELDS.map((f) => [f[0], f[2]]));
     $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
     $('btnDetail').onclick = () => { detail = !detail; refresh(); };
+    $('total').textContent = ALL.length.toLocaleString('ko-KR') + ' 문항';
     $('btnMake').onclick = make; $('btnMore').onclick = () => { moreOpen = !moreOpen; if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('btnBack').onclick = goHome;
     $('btnForm').onclick = openForm;
     $('mOk').onclick = () => closeForm(true); $('mCancel').onclick = () => closeForm(false); $('mX').onclick = () => closeForm(false);
