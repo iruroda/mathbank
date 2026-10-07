@@ -62,6 +62,17 @@
     sec: () => inc('grade', '3학년') && (inc('year', '2021년') || inc('year', '2022년')),
   };
   const groupTimers = {};
+  // 과목/단원 모드: 지금 고른 과목·단원 안에 문항이 한 개도 없는 연도는 누를 수 없게 한다 (아직 안 고른 묶음은 제한 없음으로 본다)
+  function yearsAvail() {
+    const set = new Set();
+    ALL.forEach((p) => {
+      if (isActive('subject') && !inc('subject', subjDisp(p.subject))) return;
+      const uk = 'u:' + p.subject;
+      if (GATE[uk] && GATE[uk]() && isActive(uk) && !isAll(uk) && !filters[uk].has(p.unit)) return;
+      set.add(p.year + '년');
+    });
+    return set;
+  }
   const EXTRA_MONTHS = ['4월', '7월', '10월'];         // 3학년을 골라야 나타나는 월
   let monthExtraOn = false;
   let yearPreset = null;                     // null | 'all' | 5 | 3  (전체 / 최근 5개년 / 최근 3개년은 서로 겹쳐 선택되지 않는다)
@@ -71,6 +82,7 @@
     for (const k of Object.keys(GATE)) if (!GATE[k]()) { delete filters[k]; allOn.delete(k); }   // 숨겨지는 조건은 해제
     const extraNow = inc('grade', '3학년');
     if (!extraNow && filters.month) { EXTRA_MONTHS.forEach((m) => filters.month.delete(m)); if (!filters.month.size) delete filters.month; }
+    if (mode === 'unit' && filters.year) { const av = yearsAvail(); [...filters.year].forEach((y) => { if (!av.has(y)) filters.year.delete(y); }); if (!filters.year.size) delete filters.year; }
     // 묶음마다 고정된 래퍼를 두고 열고 닫는 애니메이션을 준다 (닫히는 동안 내용은 그대로 둔다)
     if (box.dataset.mode !== mode) { box.innerHTML = ''; box.dataset.mode = mode; }
     modeKeys(mode).forEach((k) => {
@@ -143,9 +155,11 @@
     }
     gp.appendChild(h);
     const wrap = document.createElement('div'); wrap.className = 'chips'; gp.appendChild(wrap);
-    const availKeys = k === 'month' ? keys.filter((v) => !EXTRA_MONTHS.includes(v) || inc('grade', '3학년')) : keys;
+    const yAv = (k === 'year' && mode === 'unit') ? yearsAvail() : null;
+    const availKeys = yAv ? keys.filter((v) => yAv.has(v)) : k === 'month' ? keys.filter((v) => !EXTRA_MONTHS.includes(v) || inc('grade', '3학년')) : keys;
     keys.forEach((v) => {
       const c = chip(k, v, 0, availKeys, k === 'u:이산수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined);   // 버튼 글씨만 다르게, 문항 정보는 그대로
+      if (yAv && !yAv.has(v)) c.disabled = true;
       if (k === 'month' && EXTRA_MONTHS.includes(v)) { c.classList.add('cx'); if (monthExtraOn) c.classList.add('open'); }
       wrap.appendChild(c);
     });
@@ -185,7 +199,7 @@
     const head = document.createElement('div'); head.className = 'listhead';
     head.innerHTML = '<label class="all"><input type="checkbox" id="chkAll"><span>전체</span></label>'
       + '<div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>'
-      + '<input type="text" id="qBox" autocomplete="off"><button type="button" id="qClr" aria-label="전체 지우기">✕</button></div>'
+      + '<input type="text" id="qBox" autocomplete="off"><button type="button" id="qClr" aria-label="전체 지우기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'
       + '<span class="cnt" id="cnt"></span>';
     m.appendChild(head);
     const list = document.createElement('div'); list.className = 'list'; m.appendChild(list);
@@ -218,7 +232,7 @@
         const mt = document.createElement('div'); mt.className = 'm'; mt.textContent = meta(p);
         box.append(mt, sm);
         const pv = document.createElement('button'); pv.type = 'button'; pv.className = 'pvbtn'; pv.setAttribute('aria-label', '문항 미리보기');
-        pv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v9M7.5 12h9"/></svg>';
+        pv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v9M7.5 12h9"/></svg>';
         pv.onclick = (e) => { e.stopPropagation(); openPreview(p); };
         row.append(c, box, pv);
         row.onclick = (e) => { if (e.target !== c) { c.checked = !c.checked; c.onchange(); } };
