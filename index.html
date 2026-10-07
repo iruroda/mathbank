@@ -72,6 +72,8 @@
   .chips { display:flex; flex-wrap:wrap; gap:6px; }
   .chip { display:inline-flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 10px; font-size:13px; border-radius:8px; }
   .chip .n { display:inline-block; box-sizing:border-box; text-align:center; font-variant-numeric:tabular-nums; background:var(--sub); color:var(--card); font-size:11px; line-height:1; padding:3px 7px; border-radius:999px; }
+  .chip.cx { max-width:0; padding-left:0; padding-right:0; margin-left:-6px; border-width:0; opacity:0; overflow:hidden; visibility:hidden; pointer-events:none; white-space:nowrap; transition:max-width .32s ease, padding .32s ease, margin .32s ease, border-width .32s ease, opacity .32s ease, visibility 0s .32s; }
+  .chip.cx.open { max-width:90px; padding-left:10px; padding-right:10px; margin-left:0; border-width:1px; opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
   .chip.on { background:var(--acc); border-color:var(--acc); color:#fff; }
   .chip.on .n { background:var(--card); color:var(--acc); }
   .sidehead { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; }
@@ -93,10 +95,10 @@
   .collapse-in { overflow:hidden; min-height:0; }
   #main { margin-top:12px; }
   @media (prefers-reduced-motion: reduce) { .collapse { transition:none; } }
-  .busy { position:fixed; inset:0; z-index:80; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(246,247,249,.78); backdrop-filter:blur(3px); }
-  @media (prefers-color-scheme: dark) { .busy { background:rgba(20,23,29,.78); } .busybox { box-shadow:0 8px 30px rgba(0,0,0,.6); } }
+  .busy { position:fixed; inset:0; z-index:80; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:var(--shadow); }
+  .busybox .x { position:absolute; top:10px; right:10px; width:32px; height:32px; padding:0; font-size:18px; line-height:1; border:none; background:none; color:var(--sub); }
   .busy.show { display:flex; }
-  .busybox { width:220px; height:220px; background:var(--card); border-radius:18px; box-shadow:0 8px 30px rgba(0,0,0,.22); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+  .busybox { width:220px; height:220px; background:var(--card); border-radius:18px; border:1px solid var(--line); position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
   .busy svg { width:112px; height:112px; }
   .busy .ringbg { stroke:var(--line); } .busy #ringFg { stroke:var(--acc); transition:stroke-dashoffset .2s; }
   .busy #ringTxt { fill:var(--ink); font-size:20px; font-weight:700; }
@@ -192,7 +194,7 @@
 </div>
 
 <div class="overlay" id="pvOverlay"><div class="pvbox"><div class="pvhead"><b id="pvTitle"></b><button type="button" id="pvClose" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="pvbody" id="pvBody"></div></div></div>
-<div class="busy" id="busy"><div class="busybox"><svg viewBox="0 0 100 100"><circle class="ringbg" cx="50" cy="50" r="42" fill="none" stroke-width="9"/><circle id="ringFg" cx="50" cy="50" r="42" fill="none" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.894" stroke-dashoffset="263.894" transform="rotate(-90 50 50)"/><text id="ringTxt" x="50" y="57" text-anchor="middle">0%</text></svg><div id="busyMsg">PDF 생성중입니다</div></div></div>
+<div class="busy" id="busy"><div class="busybox"><button type="button" class="x" id="busyX" aria-label="취소">✕</button><svg viewBox="0 0 100 100"><circle class="ringbg" cx="50" cy="50" r="42" fill="none" stroke-width="9"/><circle id="ringFg" cx="50" cy="50" r="42" fill="none" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.894" stroke-dashoffset="263.894" transform="rotate(-90 50 50)"/><text id="ringTxt" x="50" y="57" text-anchor="middle">0%</text></svg><div id="busyMsg">PDF 생성중입니다</div></div></div>
 <div class="overlay" id="overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
     <button class="x" id="mX" aria-label="닫기">✕</button>

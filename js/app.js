@@ -41,11 +41,16 @@
   // 실제 결과: 보이는 묶음마다 '전체' 또는 칩 선택이 있어야 하고, 고른 칩 조건을 모두 만족해야 한다
   function strictMatch(p, shown) {
     for (const k of shown) {
+      if (k.startsWith('u:')) {                 // 과목별 단원 묶음: 이 문제의 과목 묶음만 따진다 (아직 단원을 안 고른 다른 과목은 그냥 빠진다)
+        const v = FN[k](p);
+        if (v === null) continue;
+        if (!isActive(k)) return false;
+        if (!isAll(k) && !filters[k].has(v)) return false;
+        continue;
+      }
       if (!isActive(k)) return false;
       if (isAll(k)) continue;
-      const v = FN[k](p);
-      if (v === null) continue;                 // 다른 과목의 단원 묶음은 이 문제와 무관
-      if (!filters[k].has(v)) return false;
+      if (!filters[k].has(FN[k](p))) return false;
     }
     return true;
   }
@@ -57,11 +62,15 @@
     sec: () => inc('grade', '3학년') && (inc('year', '2021년') || inc('year', '2022년')),
   };
   const groupTimers = {};
+  const EXTRA_MONTHS = ['4월', '7월', '10월'];         // 3학년을 골라야 나타나는 월
+  let monthExtraOn = false;
   let yearPreset = null;                     // null | 'all' | 5 | 3  (전체 / 최근 5개년 / 최근 3개년은 서로 겹쳐 선택되지 않는다)
   function renderFilters() {
     const box = $('filters');
     if (!mode) { box.innerHTML = ''; $('extras').innerHTML = ''; return; }
     for (const k of Object.keys(GATE)) if (!GATE[k]()) { delete filters[k]; allOn.delete(k); }   // 숨겨지는 조건은 해제
+    const extraNow = inc('grade', '3학년');
+    if (!extraNow && filters.month) { EXTRA_MONTHS.forEach((m) => filters.month.delete(m)); if (!filters.month.size) delete filters.month; }
     // 묶음마다 고정된 래퍼를 두고 열고 닫는 애니메이션을 준다 (닫히는 동안 내용은 그대로 둔다)
     if (box.dataset.mode !== mode) { box.innerHTML = ''; box.dataset.mode = mode; }
     modeKeys(mode).forEach((k) => {
@@ -83,6 +92,10 @@
         groupTimers[k] = setTimeout(() => { if (!w.classList.contains('open')) inn.innerHTML = ''; }, 360);
       }
     });
+    if (mode === 'time' && extraNow !== monthExtraOn) {            // 4·7·10월 칩이 나타나고 사라지는 애니메이션
+      monthExtraOn = extraNow; void box.offsetWidth;
+      box.querySelectorAll('.chip.cx').forEach((c) => c.classList.toggle('open', extraNow));
+    }
     if (moreOpen) { $('extras').innerHTML = ''; ['points', 'type'].forEach((k) => { const d = document.createElement('div'); d.appendChild(buildGroup(k)); $('extras').appendChild(d); }); }   // 닫히는 동안에는 내용을 그대로 둔다
   }
   const sameSet = (x, y) => x.size === y.size && [...x].every((v) => y.has(v));
@@ -130,7 +143,12 @@
     }
     gp.appendChild(h);
     const wrap = document.createElement('div'); wrap.className = 'chips'; gp.appendChild(wrap);
-    keys.forEach((v) => wrap.appendChild(chip(k, v, 0, keys, k === 'u:이산수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined)));   // 버튼 글씨만 다르게, 문항 정보는 그대로
+    const availKeys = k === 'month' ? keys.filter((v) => !EXTRA_MONTHS.includes(v) || inc('grade', '3학년')) : keys;
+    keys.forEach((v) => {
+      const c = chip(k, v, 0, availKeys, k === 'u:이산수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined);   // 버튼 글씨만 다르게, 문항 정보는 그대로
+      if (k === 'month' && EXTRA_MONTHS.includes(v)) { c.classList.add('cx'); if (monthExtraOn) c.classList.add('open'); }
+      wrap.appendChild(c);
+    });
     if (k === 'year') { const nt = document.createElement('div'); nt.className = 'note'; nt.textContent = '※ 수능, 모의평가는 시행 연도 기준(ex. 2027학년도 수능 → 2026년)'; gp.appendChild(nt); }
     return gp;
   }
@@ -302,7 +320,7 @@
     await wait(480);
     side.classList.remove('reveal');
   }
-  function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearPreset = null; }
+  function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearPreset = null; monthExtraOn = false; }
   async function goHome() {
     if (animating) return;
     if (reduceMotion() || !mode) { resetState(); refresh(); return; }
@@ -340,6 +358,7 @@
     $('overlay').classList.remove('show'); $('btnForm').focus();
   }
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && $('busy').classList.contains('show')) { e.preventDefault(); cancelMake(); return; }
     if (e.key === 'Escape' && $('pvOverlay').classList.contains('show')) { closePreview(); return; }
     if (!$('overlay').classList.contains('show')) return;
     if (e.key === 'Escape') { e.preventDefault(); closeForm(false); }
@@ -438,24 +457,33 @@
     $('busy').classList.toggle('show', on); $('busyMsg').textContent = msg || 'PDF 생성중입니다';
     $('busy').classList.remove('err'); if (on) setProgress(0);
   }
+  let makeTok = 0;
+  class Cancelled extends Error {}
+  function cancelMake() {                      // 진행 중이면 취소, 오류 화면이면 그냥 닫기
+    if (busy) { makeTok++; busy = false; showBusy(false); updateButtons(); }
+    else showBusy(false);
+  }
   async function make() {
+    const tok = ++makeTok, live = () => tok === makeTok;
     $('btnMake').disabled = true; busy = true; showBusy(true);
     try {
-      await ensurePdfLib(); setProgress(0.03);
+      await ensurePdfLib(); if (!live()) return; setProgress(0.03);
       const list = picked().sort(cmp);
       const plan = Layout.buildPlan(list, DATA.exams, {
         title: opts.title, footer: opts.footer, layout: opts.layout, solutions: opts.sol !== '0', answersOnly: opts.sol === '2',
       });
       setProgress(0.05);
-      const bytes = await renderPlan(plan, (d, n) => setProgress(0.05 + 0.9 * d / n));
+      const bytes = await renderPlan(plan, (d, n) => { if (!live()) throw new Cancelled(); setProgress(0.05 + 0.9 * d / n); });
+      if (!live()) return;
       setProgress(1);
       const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (opts.title || '문제지') + '.pdf'; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
-      await new Promise((r) => setTimeout(r, 350)); showBusy(false);
+      await new Promise((r) => setTimeout(r, 350)); if (live()) showBusy(false);
     } catch (e) {
+      if (e instanceof Cancelled || !live()) return;
       console.error(e); showBusy(true, '오류: ' + e.message); $('busy').classList.add('err');
-    } finally { busy = false; updateButtons(); }
+    } finally { if (live()) { busy = false; updateButtons(); } }
   }
 
   /* 우클릭 메뉴, 드래그 시작, 글자 선택 시작 차단 (입력칸은 제외) */
@@ -508,7 +536,8 @@
     $('btnBack').onclick = goHome;
     $('btnForm').onclick = openForm;
     $('mOk').onclick = () => closeForm(true); $('mCancel').onclick = () => closeForm(false); $('mX').onclick = () => closeForm(false);
-    $('busy').addEventListener('click', () => { if (!busy) showBusy(false); });
+    $('busy').addEventListener('click', (e) => { if (!busy && e.target === $('busy')) showBusy(false); });
+    $('busyX').onclick = cancelMake;
     $('overlay').addEventListener('mousedown', (e) => { if (e.target === $('overlay')) closeForm(false); });
     refresh();
   }
