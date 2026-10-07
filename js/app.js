@@ -115,7 +115,7 @@
       [5, 3].forEach((n) => {
         const target = new Set(keys.filter((v) => parseInt(v, 10) > maxY - n));
         const on = yearPreset === n;
-        pill('최근 ' + n + '개년', on, () => {
+        pill('최근 ' + n + '년', on, () => {
           if (on) { allOn.delete(k); delete filters[k]; yearPreset = null; }
           else {
             yearPreset = n;
@@ -259,7 +259,7 @@
   }
   function updateButtons() {
     const nPick = picked().length;
-    $('total').textContent = nPick.toLocaleString('ko-KR') + ' 문항';
+    { const t = $('total'); t.textContent = ''; const b = document.createElement('b'); const num = document.createElement('span'); num.className = 'num'; num.textContent = nPick.toLocaleString('ko-KR'); b.append(num, ' 문항'); const sm = document.createElement('span'); sm.className = 'sfx'; sm.textContent = '을 찾았습니다.'; t.append(b, sm); }
     $('btnMake').disabled = busy || nPick === 0;
     $('btnDetail').className = detail ? 'on' : '';
     $('btnDetail').textContent = detail ? '문항 목록 닫기' : '문항 목록 열기';
@@ -488,7 +488,7 @@
       box.style.setProperty('--d', d + 'px');
     });
   }
-  alignHeader(); fixTotalWidth();
+  alignHeader();
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(alignHeader);
 
   async function init() {
