@@ -11,7 +11,7 @@
     ['sec', '선택과목(2021-2022)', (p) => p.sec],
     ['subject', '과목', (p) => subjDisp(p.subject)],
     ['points', '배점', (p) => (p.points == null ? '-' : p.points + '점')],
-    ['type', '문제 유형', (p) => typeName(p.type)],
+    ['type', '문항 유형', (p) => typeName(p.type)],
   ];
   const MID_SUBJECTS = ['수학 1', '수학 2', '수학 3'];
   const subjDisp = (s) => (MID_SUBJECTS.includes(s) ? '중학교 수학' : s);
@@ -205,7 +205,7 @@
       list.innerHTML = '';
       const toks = query.toLowerCase().split(/\s+/).filter(Boolean);
       shown = vis.filter((p) => { const hay = (label(p) + ' ' + (p.also || '') + ' ' + meta(p) + ' ' + p.summary).toLowerCase(); return toks.every((t) => hay.includes(t)); });
-      if (!shown.length) { list.innerHTML = '<div style="color:var(--sub);font-size:13px;padding:8px 2px">' + (vis.length ? '검색 결과가 없어요.' : '조건에 맞는 문제가 없어요.') + '</div>'; sync(); return; }
+      if (!shown.length) { list.innerHTML = '<div style="color:var(--sub);font-size:13px;padding:8px 2px">' + (vis.length ? '검색 결과가 없습니다.' : '조건에 맞는 문항이 없습니다.') + '</div>'; sync(); return; }
       shown.forEach((p) => {
         const row = document.createElement('div'); row.className = 'item' + (excluded.has(p.id) ? ' off' : '');
         const c = document.createElement('input'); c.type = 'checkbox'; c.checked = !excluded.has(p.id);
@@ -217,7 +217,7 @@
         box.append(t);
         const mt = document.createElement('div'); mt.className = 'm'; mt.textContent = meta(p);
         box.append(mt, sm);
-        const pv = document.createElement('button'); pv.type = 'button'; pv.className = 'pvbtn'; pv.setAttribute('aria-label', '문제 미리보기');
+        const pv = document.createElement('button'); pv.type = 'button'; pv.className = 'pvbtn'; pv.setAttribute('aria-label', '문항 미리보기');
         pv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v9M7.5 12h9"/></svg>';
         pv.onclick = (e) => { e.stopPropagation(); openPreview(p); };
         row.append(c, box, pv);
@@ -245,7 +245,7 @@
   }
   async function openPreview(p) {
     const tok = ++pvToken, ov = $('pvOverlay'), body = $('pvBody');
-    $('pvTitle').textContent = labelOf(p); body.innerHTML = '<div class="pvmsg">불러오는 중…</div>'; ov.classList.add('show');
+    $('pvTitle').textContent = labelOf(p); body.innerHTML = ''; ov.classList.add('show');
     try {
       const file = DATA.exams[p.exam].q.file;
       const doc = await getPdfDoc(file);
@@ -258,7 +258,7 @@
         const cv = document.createElement('canvas'); cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
         cv.style.width = cssW + 'px'; cv.style.height = (cv.height / dpr) + 'px';
         await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
-        const g = cv.getContext('2d'); g.strokeStyle = 'rgba(36,86,214,.85)'; g.lineWidth = 2 * dpr;      // 이 문제 위치 표시
+        const g = cv.getContext('2d'); g.strokeStyle = 'rgba(143,103,64,.9)'; g.lineWidth = 2 * dpr;      // 이 문제 위치 표시
         p.q.filter((b) => b.p === pn).forEach((b) => { const k = sc * dpr; g.strokeRect((b.x0 - 4) * k, (b.t - 4) * k, (b.x1 - b.x0 + 8) * k, (b.b - b.t + 8) * k); });
         frag.push(cv);
       }
@@ -266,7 +266,7 @@
       body.innerHTML = ''; frag.forEach((c) => body.appendChild(c));
       const first = p.q[0]; body.scrollTop = 0;
       const k = cssW / (await doc.getPage(first.p + 1)).getViewport({ scale: 1 }).width; body.scrollTop = Math.max(0, first.t * k - 60);
-    } catch (err) { if (tok === pvToken) body.innerHTML = '<div class="pvmsg">미리보기를 불러오지 못했어요.<br>' + String(err.message || err) + '</div>'; }
+    } catch (err) { console.error(err); if (tok === pvToken) closePreview(); }
   }
   function closePreview() { pvToken++; $('pvOverlay').classList.remove('show'); }
   function fixTotalWidth() {              // "N 문항" 칸 폭 고정 (자릿수가 달라져도 버튼이 늘었다 줄지 않게)
@@ -477,12 +477,12 @@
       if (!live()) return;
       setProgress(1);
       const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-      const a = document.createElement('a'); a.href = url; a.download = (opts.title || '문제지') + '.pdf'; a.click();
+      const a = document.createElement('a'); a.href = url; a.download = (opts.title || '문항지') + '.pdf'; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
       await new Promise((r) => setTimeout(r, 350)); if (live()) showBusy(false);
     } catch (e) {
       if (e instanceof Cancelled || !live()) return;
-      console.error(e); showBusy(true, '오류: ' + e.message); $('busy').classList.add('err');
+      console.error(e); showBusy(false);
     } finally { if (live()) { busy = false; updateButtons(); } }
   }
 
@@ -541,5 +541,5 @@
     $('overlay').addEventListener('mousedown', (e) => { if (e.target === $('overlay')) closeForm(false); });
     refresh();
   }
-  init().catch((e) => { $('status').textContent = '데이터를 불러오지 못했어요: ' + e.message + ' (로컬에서 열 땐 python -m http.server 로 실행하세요)'; });
+  init().catch((e) => { console.error(e); });
 })();
