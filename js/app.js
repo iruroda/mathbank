@@ -41,16 +41,11 @@
   // 실제 결과: 보이는 묶음마다 '전체' 또는 칩 선택이 있어야 하고, 고른 칩 조건을 모두 만족해야 한다
   function strictMatch(p, shown) {
     for (const k of shown) {
-      if (k.startsWith('u:')) {                 // 과목별 단원 묶음: 이 문제의 과목 묶음만 따진다 (아직 단원을 안 고른 다른 과목은 그냥 빠진다)
-        const v = FN[k](p);
-        if (v === null) continue;
-        if (!isActive(k)) return false;
-        if (!isAll(k) && !filters[k].has(v)) return false;
-        continue;
-      }
+      const v = FN[k](p);
+      if (v === null) continue;                 // 이 묶음이 다루지 않는 문항(다른 과목의 단원, 2020년이 아닌 문항의 가형/나형 등)은 무관
       if (!isActive(k)) return false;
       if (isAll(k)) continue;
-      if (!filters[k].has(FN[k](p))) return false;
+      if (!filters[k].has(v)) return false;
     }
     return true;
   }
@@ -62,14 +57,16 @@
     sec: () => inc('grade', '3학년') && (inc('year', '2021년') || inc('year', '2022년')),
   };
   const groupTimers = {};
-  // 과목/단원 모드: 지금 고른 과목·단원 안에 문항이 한 개도 없는 연도는 누를 수 없게 한다 (아직 안 고른 묶음은 제한 없음으로 본다)
-  function yearsAvail() {
-    const set = new Set();
+  // 다른 묶음의 현재 선택으로 볼 때, 이 묶음의 어떤 값에 문항이 한 개라도 있는지 (아직 안 고른 묶음은 제한 없음으로 본다)
+  function availVals(k) {
+    const others = shownKeys().filter((x) => x !== k), set = new Set();
     ALL.forEach((p) => {
-      if (isActive('subject') && !inc('subject', subjDisp(p.subject))) return;
-      const uk = 'u:' + p.subject;
-      if (GATE[uk] && GATE[uk]() && isActive(uk) && !isAll(uk) && !filters[uk].has(p.unit)) return;
-      set.add(p.year + '년');
+      for (const g of others) {
+        const v = FN[g](p);
+        if (v === null || !isActive(g) || isAll(g)) continue;
+        if (!filters[g].has(v)) return;
+      }
+      set.add(FN[k](p));
     });
     return set;
   }
@@ -82,7 +79,6 @@
     for (const k of Object.keys(GATE)) if (!GATE[k]()) { delete filters[k]; allOn.delete(k); }   // 숨겨지는 조건은 해제
     const extraNow = inc('grade', '3학년');
     if (!extraNow && filters.month) { EXTRA_MONTHS.forEach((m) => filters.month.delete(m)); if (!filters.month.size) delete filters.month; }
-    if (mode === 'unit' && filters.year) { const av = yearsAvail(); [...filters.year].forEach((y) => { if (!av.has(y)) filters.year.delete(y); }); if (!filters.year.size) delete filters.year; }
     // 묶음마다 고정된 래퍼를 두고 열고 닫는 애니메이션을 준다 (닫히는 동안 내용은 그대로 둔다)
     if (box.dataset.mode !== mode) { box.innerHTML = ''; box.dataset.mode = mode; }
     modeKeys(mode).forEach((k) => {
@@ -90,7 +86,7 @@
       const show = !(GATE[k] && !GATE[k]());
       clearTimeout(groupTimers[k]);
       if (!w) {
-        w = document.createElement('div'); w.className = 'collapse'; w.dataset.k = k;
+        w = document.createElement('div'); w.className = 'collapse' + ((k === 'form' || k === 'sec' || k.startsWith('u:')) ? ' sub' : ''); w.dataset.k = k;   // 하위 분류(가형/나형, 선택과목, 과목별 단원)는 들여쓴다
         const inn = document.createElement('div'); inn.className = 'collapse-in'; w.appendChild(inn); box.appendChild(w);
         if (show) w.classList.add('open');          // 처음부터 열린 채로 만들어 움직임이 없게 한다
         w._fresh = true;
@@ -155,11 +151,11 @@
     }
     gp.appendChild(h);
     const wrap = document.createElement('div'); wrap.className = 'chips'; gp.appendChild(wrap);
-    const yAv = (k === 'year' && mode === 'unit') ? yearsAvail() : null;
-    const availKeys = yAv ? keys.filter((v) => yAv.has(v)) : k === 'month' ? keys.filter((v) => !EXTRA_MONTHS.includes(v) || inc('grade', '3학년')) : keys;
+    const yAv = ((k === 'year' && mode === 'unit') || k === 'points' || k === 'type') ? availVals(k) : null;
+    const availKeys = k === 'month' ? keys.filter((v) => !EXTRA_MONTHS.includes(v) || inc('grade', '3학년')) : keys;
     keys.forEach((v) => {
       const c = chip(k, v, 0, availKeys, k === 'u:이산수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined);   // 버튼 글씨만 다르게, 문항 정보는 그대로
-      if (yAv && !yAv.has(v)) c.disabled = true;
+      if (yAv && !yAv.has(v)) { if (c.classList.contains('on')) c.classList.add('dim'); else c.disabled = true; }   // 고른 것은 옅어지고(선택 유지), 안 고른 것은 비활성
       if (k === 'month' && EXTRA_MONTHS.includes(v)) { c.classList.add('cx'); if (monthExtraOn) c.classList.add('open'); }
       wrap.appendChild(c);
     });
@@ -543,6 +539,8 @@
     DISP_ORDER = [...new Set(SUBJ_ORDER.map(subjDisp))];
     SUBJ_ORDER.forEach((s) => { FIELDS.push(['u:' + s, s, (p) => (p.subject === s ? p.unit : null)]); GATE['u:' + s] = () => inc('subject', subjDisp(s)); });
     FN = Object.fromEntries(FIELDS.map((f) => [f[0], f[2]]));
+    FN.form = (p) => (p.form ? p.form + '형' : null);                           // 가형/나형: 2020년 3학년 문항만 다룬다
+    FN.sec = (p) => (p.grade === 3 && p.year >= 2021 ? p.sec : null);         // 선택과목: 2021·2022년 3학년 문항만 다룬다 (둘은 서로 병렬)
     $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
     $('btnDetail').onclick = () => { detail = !detail; refresh(); };
     $('total').style.minWidth = (Math.max(5, String(ALL.length).length) + 3) + 'ch';   // 숫자가 바뀌어도 버튼 폭이 흔들리지 않게

@@ -74,6 +74,7 @@
   input[type=checkbox] { accent-color:var(--acc); }
   :focus-visible { outline-color:var(--acc); }
   .chip:disabled, .chip.on:disabled { opacity:1; cursor:default; color:var(--line); background:var(--card); border-color:var(--line); }
+  .chip.dim { opacity:.45; }
   .chip.cx { max-width:0; padding-left:0; padding-right:0; margin-left:-6px; border-width:0; opacity:0; overflow:hidden; visibility:hidden; pointer-events:none; white-space:nowrap; transition:max-width .32s ease, padding .32s ease, margin .32s ease, border-width .32s ease, opacity .32s ease, visibility 0s .32s; }
   .chip.cx.open { max-width:90px; padding-left:10px; padding-right:10px; margin-left:0; border-width:1px; opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
   .chip.on { background:var(--acc); border-color:var(--acc); color:var(--onacc); }
@@ -93,6 +94,7 @@
   /* 위에서 아래로 펼쳐지고 위로 접히면서 페이드 */
   .collapse { display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .32s ease, opacity .32s ease, visibility 0s .32s; }
   .collapse:not(.open) { visibility:hidden; }
+  .filters .collapse.sub { padding-left:calc(13px + 2pt); }
   .collapse.open { grid-template-rows:1fr; opacity:1; visibility:visible; transition-delay:0s; }
   .collapse-in { overflow:hidden; min-height:0; }
   #main { margin-top:12px; }
