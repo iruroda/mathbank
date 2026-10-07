@@ -134,6 +134,14 @@
   .item .m { flex:1 1 0; font-size:12px; color:var(--sub); }
   .item .s { flex:0 0 100%; font-size:13px; }
   @media (max-width: 640px) { .item .t, .item .m { flex:0 0 100%; } }
+  .item .pvbtn { flex:none; border:none; background:none; padding:2px; color:var(--sub); display:flex; align-items:center; }
+  .item .pvbtn svg { width:24px; height:24px; }
+  .pvbox { background:var(--card); border-radius:12px; width:min(94vw,780px); max-height:94vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 8px 30px rgba(0,0,0,.35); }
+  .pvhead { display:flex; align-items:center; justify-content:space-between; padding:8px 8px 8px 16px; border-bottom:1px solid var(--line); }
+  .pvhead button { border:none; background:none; padding:4px; display:flex; } .pvhead svg { width:22px; height:22px; }
+  .pvbody { overflow:auto; min-height:200px; background:#e9ebef; text-align:center; }
+  .pvbody canvas { display:block; margin:0 auto 8px; background:#fff; }
+  .pvmsg { padding:60px 16px; color:var(--sub); font-size:14px; }
   .item.off { opacity:.45; }
   /* 양식 편집 팝업 */
   .overlay { position:fixed; inset:0; background:var(--shadow); display:none; align-items:center; justify-content:center; z-index:50; padding:12px; }
@@ -179,6 +187,7 @@
   </div>
 </div>
 
+<div class="overlay" id="pvOverlay"><div class="pvbox"><div class="pvhead"><b id="pvTitle"></b><button type="button" id="pvClose" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="pvbody" id="pvBody"></div></div></div>
 <div class="busy" id="busy"><div class="busybox"><svg viewBox="0 0 100 100"><circle class="ringbg" cx="50" cy="50" r="42" fill="none" stroke-width="9"/><circle id="ringFg" cx="50" cy="50" r="42" fill="none" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.894" stroke-dashoffset="263.894" transform="rotate(-90 50 50)"/><text id="ringTxt" x="50" y="57" text-anchor="middle">0%</text></svg><div id="busyMsg">PDF 생성중입니다</div></div></div>
 <div class="overlay" id="overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">

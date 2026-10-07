@@ -198,7 +198,11 @@
         const sm = document.createElement('div'); sm.className = 's'; sm.textContent = p.summary;
         box.append(t);
         const mt = document.createElement('div'); mt.className = 'm'; mt.textContent = meta(p);
-        box.append(mt, sm); row.append(c, box);
+        box.append(mt, sm);
+        const pv = document.createElement('button'); pv.type = 'button'; pv.className = 'pvbtn'; pv.setAttribute('aria-label', '문제 미리보기');
+        pv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v9M7.5 12h9"/></svg>';
+        pv.onclick = (e) => { e.stopPropagation(); openPreview(p); };
+        row.append(c, box, pv);
         row.onclick = (e) => { if (e.target !== c) { c.checked = !c.checked; c.onchange(); } };
         list.appendChild(row);
       });
@@ -210,6 +214,43 @@
     $('qClr').onclick = () => { query = ''; qb.value = ''; draw(); qb.focus(); };
     draw();
   }
+  /* ---------- 문제 미리보기 (시험 PDF의 해당 쪽을 통째로 보여준다 / pdf.js는 처음 누를 때만 불러온다) ---------- */
+  const labelOf = (p) => `${p.grade}학년${p.form ? '(' + p.form + '형)' : ''} ${p.year}년 ${p.month}월 ${p.n}번`;
+  let pdfjsP = null; const pdfDocs = new Map(); let pvToken = 0;
+  function loadPdfjs() {
+    if (!pdfjsP) pdfjsP = import('../vendor/pdf.min.mjs').then((m) => { m.GlobalWorkerOptions.workerSrc = new URL('vendor/pdf.worker.min.mjs', document.baseURI).href; return m; });
+    return pdfjsP;
+  }
+  function getPdfDoc(file) {
+    if (!pdfDocs.has(file)) pdfDocs.set(file, loadPdfjs().then((m) => m.getDocument({ url: encodeURI(file) }).promise));
+    return pdfDocs.get(file);
+  }
+  async function openPreview(p) {
+    const tok = ++pvToken, ov = $('pvOverlay'), body = $('pvBody');
+    $('pvTitle').textContent = labelOf(p); body.innerHTML = '<div class="pvmsg">불러오는 중…</div>'; ov.classList.add('show');
+    try {
+      const file = DATA.exams[p.exam].q.file;
+      const doc = await getPdfDoc(file);
+      const pages = [...new Set(p.q.map((b) => b.p))];
+      const cssW = Math.min(body.clientWidth - 2, 900), dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const frag = [];
+      for (const pn of pages) {
+        const page = await doc.getPage(pn + 1);
+        const v0 = page.getViewport({ scale: 1 }), sc = cssW / v0.width, vp = page.getViewport({ scale: sc * dpr });
+        const cv = document.createElement('canvas'); cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+        cv.style.width = cssW + 'px'; cv.style.height = (cv.height / dpr) + 'px';
+        await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+        const g = cv.getContext('2d'); g.strokeStyle = 'rgba(36,86,214,.85)'; g.lineWidth = 2 * dpr;      // 이 문제 위치 표시
+        p.q.filter((b) => b.p === pn).forEach((b) => { const k = sc * dpr; g.strokeRect((b.x0 - 4) * k, (b.t - 4) * k, (b.x1 - b.x0 + 8) * k, (b.b - b.t + 8) * k); });
+        frag.push(cv);
+      }
+      if (tok !== pvToken) return;
+      body.innerHTML = ''; frag.forEach((c) => body.appendChild(c));
+      const first = p.q[0]; body.scrollTop = 0;
+      const k = cssW / (await doc.getPage(first.p + 1)).getViewport({ scale: 1 }).width; body.scrollTop = Math.max(0, first.t * k - 60);
+    } catch (err) { if (tok === pvToken) body.innerHTML = '<div class="pvmsg">미리보기를 불러오지 못했어요.<br>' + String(err.message || err) + '</div>'; }
+  }
+  function closePreview() { pvToken++; $('pvOverlay').classList.remove('show'); }
   function fixTotalWidth() {              // "N 문항" 칸 폭 고정 (자릿수가 달라져도 버튼이 늘었다 줄지 않게)
     const t = $('total'), cs = getComputedStyle(t), c = document.createElement('canvas').getContext('2d');
     c.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
@@ -299,6 +340,7 @@
     $('overlay').classList.remove('show'); $('btnForm').focus();
   }
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && $('pvOverlay').classList.contains('show')) { closePreview(); return; }
     if (!$('overlay').classList.contains('show')) return;
     if (e.key === 'Escape') { e.preventDefault(); closeForm(false); }
     else if (e.key === 'Enter') { e.preventDefault(); closeForm(true); }
@@ -462,7 +504,8 @@
     $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
     $('btnDetail').onclick = () => { detail = !detail; refresh(); };
     $('total').style.minWidth = (Math.max(5, String(ALL.length).length) + 3) + 'ch';   // 숫자가 바뀌어도 버튼 폭이 흔들리지 않게
-    $('btnMake').onclick = make; $('btnMore').onclick = () => { moreOpen = !moreOpen; if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('btnBack').onclick = goHome;
+    $('btnMake').onclick = make; $('btnMore').onclick = () => { moreOpen = !moreOpen; if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('pvClose').onclick = closePreview; $('pvOverlay').onclick = (e) => { if (e.target === $('pvOverlay')) closePreview(); };
+    $('btnBack').onclick = goHome;
     $('btnForm').onclick = openForm;
     $('mOk').onclick = () => closeForm(true); $('mCancel').onclick = () => closeForm(false); $('mX').onclick = () => closeForm(false);
     $('busy').addEventListener('click', () => { if (!busy) showBusy(false); });
