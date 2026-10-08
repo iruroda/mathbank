@@ -72,6 +72,7 @@
   }
   const EXTRA_MONTHS = ['4월', '7월', '10월'];         // 3학년을 골라야 나타나는 월
   let monthExtraOn = false;
+  let subjPreset = null;                     // null | 'all' | 'csat'  (과목: 전체 / 수능은 서로 겹쳐 선택되지 않는다)
   let yearPreset = null;                     // null | 'all' | 5 | 3  (전체 / 최근 5개년 / 최근 3개년은 서로 겹쳐 선택되지 않는다)
   function renderFilters() {
     const box = $('filters');
@@ -146,6 +147,18 @@
           refresh();
         });
       });
+    } else if (k === 'subject') {
+      const allLit = subjPreset === 'all' || (subjPreset === null && isAll(k));
+      pill('전체', allLit, () => {
+        if (allLit) { allOn.delete(k); delete filters[k]; subjPreset = null; }
+        else { allOn.add(k); delete filters[k]; subjPreset = 'all'; }
+        refresh();
+      });
+      pill('수능', subjPreset === 'csat', () => {
+        if (subjPreset === 'csat') { allOn.delete(k); delete filters[k]; subjPreset = null; }
+        else { subjPreset = 'csat'; allOn.delete(k); filters[k] = new Set(['대수', '확률과 통계', '미적분Ⅰ'].filter((v) => keys.includes(v))); }
+        refresh();
+      });
     } else {
       pill('전체', isAll(k), () => { if (isAll(k)) allOn.delete(k); else allOn.add(k); delete filters[k]; refresh(); });
     }
@@ -169,6 +182,7 @@
     b.append(l);
     b.onclick = () => {
       if (k === 'year') yearPreset = null;
+      if (k === 'subject') subjPreset = null;
       let set;
       if (isAll(k)) { allOn.delete(k); set = new Set(allVals); set.delete(v); }       // 전체 상태에서 하나를 끄면 나머지만 선택
       else { set = filters[k] || new Set(); set[on ? 'delete' : 'add'](v); }
@@ -307,11 +321,11 @@
   const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   async function setMode(m) {
     if (animating) return;
-    if (reduceMotion()) { mode = m; yearPreset = null; refresh(); return; }
+    if (reduceMotion()) { mode = m; yearPreset = null; subjPreset = null; refresh(); return; }
     animating = true;
     const modes = $('modes'), wrap = $('wrap'), side = $('side');
     const me = $(m === 'time' ? 'modeTime' : 'modeUnit'), other = $(m === 'time' ? 'modeUnit' : 'modeTime');
-    mode = m; yearPreset = null;
+    mode = m; yearPreset = null; subjPreset = null;
     wrap.hidden = false; side.hidden = false; wrap.classList.add('measure');
     refresh();                                               // 선택 창은 보이지 않는 채로 크기만 잰다 (뒤에 깔아두지 않는다)
     const H = side.getBoundingClientRect().height;
@@ -330,7 +344,7 @@
     await wait(480);
     side.classList.remove('reveal');
   }
-  function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearPreset = null; monthExtraOn = false; }
+  function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearPreset = null; subjPreset = null; monthExtraOn = false; }
   async function goHome() {
     if (animating) return;
     if (reduceMotion() || !mode) { resetState(); refresh(); return; }
