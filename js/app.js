@@ -207,7 +207,7 @@
     m.innerHTML = ''; $('mainWrap').classList.add('open');
     const vis = visible();                                  // 문항 목록
     const head = document.createElement('div'); head.className = 'listhead';
-    head.innerHTML = '<label class="all"><input type="checkbox" id="chkAll"><span>전체</span></label>'
+    head.innerHTML = '<label class="all"><input type="checkbox" id="chkAll" aria-label="전체 선택"></label>'
       + '<div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>'
       + '<input type="text" id="qBox" autocomplete="off"><button type="button" id="qClr" aria-label="전체 지우기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>'
       + '<span class="cnt" id="cnt"></span>';
@@ -242,7 +242,7 @@
         const mt = document.createElement('div'); mt.className = 'm'; mt.textContent = meta(p);
         box.append(mt, sm);
         const pv = document.createElement('button'); pv.type = 'button'; pv.className = 'pvbtn'; pv.setAttribute('aria-label', '문항 미리보기');
-        pv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v9M7.5 12h9"/></svg>';
+        pv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M13 3l5 5v2"/><circle cx="16.5" cy="16.5" r="3"/><path d="M19 19l2.5 2.5"/></svg>';
         pv.onclick = (e) => { e.stopPropagation(); openPreview(p); };
         row.append(c, box, pv);
         row.onclick = (e) => { if (e.target !== c) { c.checked = !c.checked; c.onchange(); } };
@@ -269,7 +269,7 @@
   }
   async function openPreview(p) {
     const tok = ++pvToken, ov = $('pvOverlay'), body = $('pvBody');
-    $('pvTitle').textContent = labelOf(p); body.innerHTML = ''; ov.classList.add('show');
+    $('pvTitle').textContent = labelOf(p); body.innerHTML = '<div class="pvload">불러오는 중...</div>'; ov.classList.add('show');
     try {
       const file = DATA.exams[p.exam].q.file;
       const doc = await getPdfDoc(file);
