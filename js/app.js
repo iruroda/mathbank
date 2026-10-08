@@ -242,7 +242,7 @@
         const mt = document.createElement('div'); mt.className = 'm'; mt.textContent = meta(p);
         box.append(mt, sm);
         const pv = document.createElement('button'); pv.type = 'button'; pv.className = 'pvbtn'; pv.setAttribute('aria-label', '문항 미리보기');
-        pv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M13 3l5 5v2"/><circle cx="16.5" cy="16.5" r="3"/><path d="M19 19l2.5 2.5"/></svg>';
+        pv.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4M13 3l5 5v2M13 3v5h5"/><circle cx="16.5" cy="16.5" r="3"/><path d="M19 19l2.5 2.5"/></svg>';
         pv.onclick = (e) => { e.stopPropagation(); openPreview(p); };
         row.append(c, box, pv);
         row.onclick = (e) => { if (e.target !== c) { c.checked = !c.checked; c.onchange(); } };
@@ -525,26 +525,9 @@
   })();
 
   /* 헤더: 제목 대문자 높이를 재서 상자 높이로 쓰고, 각 글씨의 기준선이 상자 아래에 오도록 맞춘다 */
-  function alignHeader() {
-    const h1 = document.querySelector('header h1'), meta = document.querySelector('header .meta');
-    const tx = h1.querySelector('.tx'), cs = getComputedStyle(h1);
-    const c = document.createElement('canvas').getContext('2d');
-    c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-    const m = c.measureText('MATH BANK');
-    const H = Math.round((m.actualBoundingBoxAscent + m.actualBoundingBoxDescent) * 10) / 10;
-    const hd = document.querySelector('header'); hd.style.setProperty('--th', H + 'px');
-    [h1, meta].forEach((box) => {
-      const t = box.querySelector('.tx'), p = t.querySelector('.bl');
-      box.style.setProperty('--d', '0px');
-      const d = t.getBoundingClientRect().bottom - p.getBoundingClientRect().bottom;   // 기준선에서 글자줄 아래까지 거리
-      box.style.setProperty('--d', d + 'px');
-    });
-  }
-  alignHeader();
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(alignHeader);
 
   async function init() {
-    const r = await fetch('data/problems.json', { cache: 'no-cache' }); DATA = await r.json();
+    const r = await (window.__P || fetch('data/problems.json', { cache: 'no-cache' })); DATA = await r.json();
     ALL = DATA.problems.slice().sort(cmp);
     SUBJ_ORDER = [...new Set((DATA.units || []).map((u) => u[0]))];                // 성취기준 파일 순서
     ALL.forEach((p) => { if (!SUBJ_ORDER.includes(p.subject)) SUBJ_ORDER.push(p.subject); });
