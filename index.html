@@ -102,7 +102,7 @@
   /* 위에서 아래로 펼쳐지고 위로 접히면서 페이드 */
   .collapse { display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .32s ease, opacity .32s ease, visibility 0s .32s; }
   .collapse:not(.open) { visibility:hidden; }
-  .filters .collapse.sub { padding-left:calc(13px + 2pt); position:relative; }
+  .filters .collapse.sub { padding-left:calc(15px + 2pt); position:relative; }
   .filters .collapse.sub::before { content:''; position:absolute; left:4px; top:3px; bottom:24px; width:4px; border-radius:0; background:var(--line); }
   .collapse.open { grid-template-rows:1fr; opacity:1; visibility:visible; transition-delay:0s; }
   .collapse-in { overflow:hidden; min-height:0; }
