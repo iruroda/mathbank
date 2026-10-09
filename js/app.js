@@ -136,7 +136,7 @@
       const maxY = Math.max(...ALL.map((p) => p.year));      // 최근 N개년 (자료에 있는 가장 최근 연도 기준)
       [5, 3].forEach((n) => {
         const target = new Set(keys.filter((v) => parseInt(v, 10) > maxY - n));
-        const on = yearPreset === n;
+        const on = yearPreset === n || (yearPreset === null && !isAll(k) && !!filters[k] && sameSet(filters[k], target));   // 칩을 직접 눌러 같은 구성이 되어도 켜진다
         pill('최근 ' + n + '년', on, () => {
           if (on) { allOn.delete(k); delete filters[k]; yearPreset = null; }
           else {
@@ -154,9 +154,11 @@
         else { allOn.add(k); delete filters[k]; subjPreset = 'all'; }
         refresh();
       });
-      pill('수능', subjPreset === 'csat', () => {
-        if (subjPreset === 'csat') { allOn.delete(k); delete filters[k]; subjPreset = null; }
-        else { subjPreset = 'csat'; allOn.delete(k); filters[k] = new Set(['대수', '확률과 통계', '미적분Ⅰ'].filter((v) => keys.includes(v))); }
+      const csatSet = new Set(['대수', '확률과 통계', '미적분Ⅰ'].filter((v) => keys.includes(v)));
+      const csatOn = subjPreset === 'csat' || (subjPreset === null && !isAll(k) && !!filters[k] && sameSet(filters[k], csatSet));
+      pill('수능', csatOn, () => {
+        if (csatOn) { allOn.delete(k); delete filters[k]; subjPreset = null; }
+        else { subjPreset = 'csat'; allOn.delete(k); filters[k] = new Set(csatSet); }
         refresh();
       });
     } else {
