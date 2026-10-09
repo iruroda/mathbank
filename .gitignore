@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+
+# local working folders (not for upload)
+/_pk/
+/20[0-9][0-9]/
+_to_delete/
