@@ -41,8 +41,8 @@
     const nextCol = () => { if (col === 0) col = 1; else { pg = null; col = 0; } used = 0; };
     const cell = G.colW / 4;
     problems.forEach((p, i) => {
-      const ex = exams[p.exam].q, b = p.q[0];
-      const bw = b.x1 - b.x0, bh = b.b - b.t, s0 = Math.min(G.colW / bw, 1);
+      const ex = exams[p.exam].q, b = p.q[p.q.length - 1];   // b: 문항 본체(마지막 조각), 앞 조각은 공통 지문
+      const bw = Math.max(...p.q.map((c) => c.x1 - c.x0)), bh = p.q.reduce((a, c) => a + c.b - c.t, 0), s0 = Math.min(G.colW / bw, 1);
       const fitsHalf = bh * s0 <= halfH - BAR_H - PAD;
       const small = p.points != null && p.points <= 3;
       const half = opt.layout === 'full' ? false : opt.layout === 'half' ? fitsHalf : (small && fitsHalf);
@@ -64,11 +64,15 @@
       if (sec) pg.ops.push({ t: 'text', s: sec, x: x + 3 * cell + 4 + (String(p.n).length * 5.4 + 11), y: y0 + 11, size: 6.5, bold: false, align: 'left', maxW: cell - 6 - (String(p.n).length * 5.4 + 11) });
       pg.ops.push({ t: 'line', x1: x, y1: y0 + 16, x2: x + G.colW, y2: y0 + 16, w: 0.6 });
       const dy = y0 + BAR_H;
-      pg.ops.push({ t: 'crop', file: ex.file, page: b.p, ph: ex.h, src: [b.x0, b.t, b.x1, b.b], dest: [x, dy, bw * s, bh * s] });
-      if (b.num) {  // 원본 문제 번호 가리기
-        const n = b.num;
-        pg.ops.push({ t: 'rect', x: x + (n[0] - b.x0) * s - 1, y: dy + (n[1] - b.t) * s - 1, w: (n[2] - n[0]) * s + 3, h: (n[3] - n[1]) * s + 2, fill: '#ffffff' });
-      }
+      let cy = dy;
+      p.q.forEach((c) => {
+        pg.ops.push({ t: 'crop', file: ex.file, page: c.p, ph: ex.h, src: [c.x0, c.t, c.x1, c.b], dest: [x, cy, (c.x1 - c.x0) * s, (c.b - c.t) * s] });
+        if (c.num) {  // 원본 문제 번호 가리기
+          const n = c.num;
+          pg.ops.push({ t: 'rect', x: x + (n[0] - c.x0) * s - 1, y: cy + (n[1] - c.t) * s - 1, w: (n[2] - n[0]) * s + 3, h: (n[3] - n[1]) * s + 2, fill: '#ffffff' });
+        }
+        cy += (c.b - c.t) * s;
+      });
     });
 
     /* ---------- 2) 해설 파트: 미주(2단 흐름) ---------- */

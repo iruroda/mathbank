@@ -7,8 +7,9 @@
     ['grade', '학년', (p) => p.grade + '학년'],
     ['year', '연도', (p) => p.year + '년'],
     ['month', '월', (p) => p.month + '월'],
-    ['form', '가형/나형(2학년 2017-2019, 3학년 2017-2020)', (p) => (p.form ? p.form + '형' : '해당 없음')],
     ['sec', '선택과목(3학년 2021-2026)', (p) => p.sec],
+    ['form', '가형/나형(2학년 2015-2019, 3학년 2016-2020)', (p) => (p.form === '가' || p.form === '나' ? p.form + '형' : '해당 없음')],
+    ['ab', 'A형/B형(2학년 2014, 3학년 2014-2015)', (p) => (p.form === 'A' || p.form === 'B' ? p.form + '형' : '해당 없음')],
     ['subject', '과목', (p) => subjDisp(p.subject)],
     ['points', '배점', (p) => (p.points == null ? '-' : p.points + '점')],
     ['type', '문항 유형', (p) => typeName(p.type)],
@@ -31,7 +32,7 @@
   const fieldOf = (k) => FIELDS.find((f) => f[0] === k);
   // 화면에 보이는 묶음(모드별 순서). 과목/단원 모드: 과목, 고른 과목의 단원 묶음들, 연도
   function modeKeys(m) {
-    return m === 'time' ? ['grade', 'year', 'month', 'form', 'sec'] : ['subject', ...SUBJ_ORDER.map((s) => 'u:' + s), 'year'];
+    return m === 'time' ? ['grade', 'year', 'month', 'sec', 'form', 'ab'] : ['subject', ...SUBJ_ORDER.map((s) => 'u:' + s), 'year'];
   }
   function shownKeys() {
     if (!mode) return [];
@@ -54,8 +55,9 @@
   // 가형/나형은 (2학년+2017~2019년) 또는 (3학년+2017~2020년), 선택과목은 3학년+2021~2026년, 단원 묶음은 그 과목을 골랐을 때만 보인다
   const anyYear = (a, b) => { for (let y = a; y <= b; y++) if (inc('year', y + '년')) return true; return false; };
   const GATE = {
-    form: () => (inc('grade', '2학년') && anyYear(2017, 2019)) || (inc('grade', '3학년') && anyYear(2017, 2020)),
+    form: () => (inc('grade', '2학년') && anyYear(2015, 2019)) || (inc('grade', '3학년') && anyYear(2016, 2020)),
     sec: () => inc('grade', '3학년') && anyYear(2021, 2026),
+    ab: () => (inc('grade', '2학년') && inc('year', '2014년')) || (inc('grade', '3학년') && anyYear(2014, 2015)),
   };
   const groupTimers = {};
   // 다른 묶음의 현재 선택으로 볼 때, 이 묶음의 어떤 값에 문항이 한 개라도 있는지 (아직 안 고른 묶음은 제한 없음으로 본다)
@@ -88,7 +90,7 @@
       const show = !(GATE[k] && !GATE[k]());
       clearTimeout(groupTimers[k]);
       if (!w) {
-        w = document.createElement('div'); w.className = 'collapse' + ((k === 'form' || k === 'sec' || k.startsWith('u:')) ? ' sub' : ''); w.dataset.k = k;   // 하위 분류(가형/나형, 선택과목, 과목별 단원)는 들여쓴다
+        w = document.createElement('div'); w.className = 'collapse' + ((k === 'form' || k === 'ab' || k === 'sec' || k.startsWith('u:')) ? ' sub' : ''); w.dataset.k = k;   // 하위 분류(가형/나형, 선택과목, 과목별 단원)는 들여쓴다
         const inn = document.createElement('div'); inn.className = 'collapse-in'; w.appendChild(inn); box.appendChild(w);
         if (show) w.classList.add('open');          // 처음부터 열린 채로 만들어 움직임이 없게 한다
         w._fresh = true;
@@ -119,11 +121,12 @@
       keys = [...new Set(ALL.filter((p) => p.subject === s).map((p) => p.unit))].sort((x, y) => rank(s, x) - rank(s, y));
     } else {
       const fd = fieldOf(k); label = fd[1]; f = fd[2];
-      keys = [...new Set(ALL.map(f))].filter((v) => !(k === 'form' && v === '해당 없음'));
+      keys = [...new Set(ALL.map(f))].filter((v) => !(v === '해당 없음'));
       if (k === 'subject') keys.sort((x, y) => DISP_ORDER.indexOf(x) - DISP_ORDER.indexOf(y));
       else if (k === 'type') keys.sort((x, y) => TYPE_ORDER.indexOf(x) - TYPE_ORDER.indexOf(y));
       else if (k === 'sec') keys.sort((x, y) => SEC_RANK[x] - SEC_RANK[y]);
       else keys.sort((x, y) => String(x).localeCompare(String(y), 'ko', { numeric: true }));
+      if (k === 'year') keys.reverse();                      // 연도는 최신순(2026 → 2014)
     }
     const h = document.createElement('h3'); const hl = document.createElement('span'); hl.textContent = label; h.appendChild(hl);
     const pill = (text, on, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'allbtn' + (on ? ' on' : ''); b.textContent = text; b.onclick = fn; h.appendChild(b); };
@@ -539,7 +542,8 @@
     DISP_ORDER = [...new Set(SUBJ_ORDER.map(subjDisp))];
     SUBJ_ORDER.forEach((s) => { FIELDS.push(['u:' + s, s, (p) => (p.subject === s ? p.unit : null)]); GATE['u:' + s] = () => inc('subject', subjDisp(s)); });
     FN = Object.fromEntries(FIELDS.map((f) => [f[0], f[2]]));
-    FN.form = (p) => (p.form ? p.form + '형' : null);                           // 가형/나형: 2017~2020년 가형·나형 시험지 문항만 다룬다
+    FN.form = (p) => (p.form === '가' || p.form === '나' ? p.form + '형' : null);
+    FN.ab = (p) => (p.form === 'A' || p.form === 'B' ? p.form + '형' : null);                           // 가형/나형: 2017~2020년 가형·나형 시험지 문항만 다룬다
     FN.sec = (p) => (p.grade === 3 && p.year >= 2021 ? p.sec : null);         // 선택과목: 2021년 이후 3학년 문항만 다룬다
     $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
     $('btnDetail').onclick = () => { detail = !detail; refresh(); };

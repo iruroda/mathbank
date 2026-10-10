@@ -79,18 +79,24 @@ def char_marks(p):
     ch = [c for c in p.chars if c["text"].strip()]
     out = []
     for k, c0 in enumerate(ch):
-        if c0["text"] != "출": continue
-        tail = [d for d in ch if abs(d["top"]-c0["top"]) < 3 and 0 <= d["x0"]-c0["x1"]+2 < 40 and d["text"] in "제의도"]
-        if len({d["text"] for d in tail}) < 3: continue
-        # '출' 바로 앞의 '[' 가 있으면 그 위치를 기준으로
-        pre = [d for d in ch if d["text"] == "[" and abs(d["top"]-c0["top"]) < 3 and -2 <= c0["x0"]-d["x1"] < 6]
+        if c0["text"] == "동" and any(d["text"] == "일" and abs(d["top"]-c0["top"]) < 3 and -2 <= d["x0"]-c0["x1"] < 4 for d in ch):
+            # '[가형 2번과 동일]' 처럼 다른 형과 같은 문항 (해설 본문 없음): 가장 가까운 왼쪽 '[' 를 머리표로
+            br = [d for d in ch if d["text"] == "[" and abs(d["top"]-c0["top"]) < 3 and 0 < c0["x0"]-d["x1"] < 90]
+            if not br: continue
+            pre = [max(br, key=lambda d: d["x1"])]
+        else:
+            if c0["text"] != "출": continue
+            tail = [d for d in ch if abs(d["top"]-c0["top"]) < 3 and 0 <= d["x0"]-c0["x1"]+2 < 40 and d["text"] in "제의도"]
+            if len({d["text"] for d in tail}) < 3: continue
+            # '출' 바로 앞의 '[' 가 있으면 그 위치를 기준으로
+            pre = [d for d in ch if d["text"] == "[" and abs(d["top"]-c0["top"]) < 3 and -2 <= c0["x0"]-d["x1"] < 6]
         c = pre[0] if pre else c0
         cand = sorted([d for d in ch if abs(d["top"]-c["top"]) < 3 and d["x1"] <= c["x0"]+1 and d["x0"] >= c["x0"]-34
                        and (d["text"].isdigit() or d["text"] in ".．")], key=lambda d: -d["x1"])
         num = []
         for d in cand:                       # '[' 바로 왼쪽의 '.'부터 연속된 숫자만
             if not num:
-                if (d["text"] in ".．" or (d["text"].isdigit() and not pre)) and c["x0"]-d["x1"] < 12: num.append(d)
+                if (d["text"] in ".．" or d["text"].isdigit()) and c["x0"]-d["x1"] < 12: num.append(d)
             elif num[-1]["x0"]-d["x1"] < 2.5 and d["text"].isdigit(): num.append(d)
             else: break
         num.reverse()

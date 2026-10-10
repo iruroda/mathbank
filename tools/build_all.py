@@ -25,12 +25,17 @@ for _y, _d in _M.items():
 # 2020 (2015 개정): 3학년은 가형/나형 별도 시험지. 가형 먼저. 중복(동일) 문항은 가형만 수록 (data/dup2020.json)
 EXAMS += [(2020, g, m) for g in (1, 2) for m in (3, 6, 9, 11)]
 EXAMS += [(2020, 3, m, f) for m in (3, 4, 6, 7, 9, 10, 11) for f in ("가", "나")]
+# 2014~2016 (2009 개정): 1학년 단일, 2학년은 2014 A형/B형, 2015~2016 가형/나형
+for _y in (2014, 2015, 2016):
+    EXAMS += [(_y, 1, m) for m in (3, 6, 9, 11)]
+    EXAMS += [(_y, 2, m, f) for m in (3, 6, 9, 11) for f in (("A", "B") if _y == 2014 else ("가", "나"))]
 # 2017~2019 (2009 개정): 2·3학년이 가형/나형 별도 시험지. 1학년은 단일. 중복 문항은 data/dup2017_19.json
 for _y in (2017, 2018, 2019):
     EXAMS += [(_y, 1, m) for m in (3, 6, 9, 11)]
     EXAMS += [(_y, 2, m, f) for m in (3, 6, 9, 11) for f in ("가", "나")]
     EXAMS += [(_y, 3, m, f) for m in (3, 4, 6, 7, 9, 10, 11) for f in ("가", "나")]
-FORM_ID = {None: "", "가": "-ga", "나": "-na"}
+FORM_ID = {None: "", "가": "-ga", "나": "-na", "A": "-A", "B": "-B"}
+STEMS = json.load(open(os.path.join(ROOT, 'data/stems.json'))) if os.path.exists(os.path.join(ROOT, 'data/stems.json')) else {}
 REDETECT = "--redetect" in sys.argv     # 검출 결과는 data/detect/ 에 저장해 두고 재사용 (검출 코드를 고쳤을 때만 --redetect)
 
 def has_text(path):
@@ -72,6 +77,7 @@ def main():
     exams, problems = {}, []
     dup = json.load(open(os.path.join(ROOT, "data/dup2020.json"), encoding="utf-8"))
     dup2 = json.load(open(os.path.join(ROOT, "data/dup2017_19.json"), encoding="utf-8")) if os.path.exists(os.path.join(ROOT, "data/dup2017_19.json")) else {}
+    if os.path.exists(os.path.join(ROOT, "data/dup2014_16.json")): dup2.update({k: v for k, v in json.load(open(os.path.join(ROOT, "data/dup2014_16.json"), encoding="utf-8")).items() if not k.startswith("_")})
     for ex in EXAMS:
         year, g, month = ex[:3]; form = ex[3] if len(ex) > 3 else None
         old = (year >= 2021)                      # 2021~: 공통+선택 구조, 2020: 단일 시험지
@@ -100,7 +106,7 @@ def main():
         a["columns"] = [tuple(c) for c in a["columns"]]
         if "--detect-only" in sys.argv: print(eid, "검출", len(q["items"]), len(a["items"])); continue
         if year <= 2020:
-            sfx = {None: "", "가": "_ga", "나": "_na"}[form]
+            sfx = {None: "", "가": "_ga", "나": "_na", "A": "_A", "B": "_B"}[form]
             cls = load_json_class(year, g, month, codes, sfx)
         else:
             cls = x6 if (year, month) == (2021, 6) else load_json_class(year, g, month, codes)
@@ -113,7 +119,8 @@ def main():
         if form and year <= 2020:
             dm = dup[str(month)] if (year == 2020 and g == 3) else dup2.get(f"{year}-{g}-{month}", {"same": {}, "variant": [], "delete": []})
             for nb, na in dm["same"].items():
-                drop.add(("나", int(nb))); also[("가", int(na))] = f"나형 {nb}번"
+                f1, f2 = ("A", "B") if form in ("A", "B") else ("가", "나")
+                drop.add((f2, int(nb))); also[(f1, int(na))] = f"{f2}형 {nb}번"
             for v in dm["variant"]:
                 drop.add(tuple(v["drop"])); also[tuple(v["keep"])] = f"{v['drop'][0]}형 {v['drop'][1]}번"
             for x in dm["delete"]: drop.add(tuple(x))
@@ -129,6 +136,8 @@ def main():
                 subject=c["subject"], unit=c["unit"], code=c["code"], standard=c["standard"], summary=c["summary"],
                 points=it["points"], type=it["type"], answer=answer,
                 q=[box(it)], a=[box(b) for b in ai["boxes"]] if ai else [])
+            for st in STEMS.get(eid, []):      # [N~M] 공통 지문(그림)은 문항 앞에 덧붙임
+                if it["n"] in st["n"]: pr["q"].insert(0, box(dict(page=st["p"], x0=st["x0"], top=st["t"], x1=st["x1"], bottom=st["b"]))); pr["stem"] = True
             if form: pr["form"] = form
             if (form, it["n"]) in also: pr["also"] = also[(form, it["n"])]
             problems.append(pr); cnt += 1

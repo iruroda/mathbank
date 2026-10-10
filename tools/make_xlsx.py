@@ -28,7 +28,7 @@ for r in x6.iter_rows(min_row=2, values_only=True):
     notes[(int(r[2]), int(r[3]), 6, None, r[6] or "공통", int(r[5]))] = r[12]
 SEC_KEY = {"C": "공통", "P": "확률과 통계", "K": "미적분", "G": "기하"}
 for f in os.listdir(os.path.join(ROOT, "data/classification")):
-    parts = f[:-5].split("_"); y, g, m = parts[:3]; fm = {"ga": "가", "na": "나"}.get(parts[3]) if len(parts) > 3 else None
+    parts = f[:-5].split("_"); y, g, m = parts[:3]; fm = {"ga": "가", "na": "나", "A": "A", "B": "B"}.get(parts[3]) if len(parts) > 3 else None
     dd = json.load(open(os.path.join(ROOT, "data/classification", f), encoding="utf-8"))
     for k, v in dd.items(): notes[(int(y), int(g), int(m), fm, SEC_KEY[k[0]], int(k[1:]))] = v.get("note") or None
 for i, p in enumerate(probs, 2):
