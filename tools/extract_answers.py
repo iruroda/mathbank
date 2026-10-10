@@ -13,6 +13,7 @@ def dec(s):
     for ch in s or "":
         o = ord(ch)
         if 0xE033 <= o <= 0xE03C: out.append(str(o - 0xE033))
+        elif o == 0xE03D: out.append("0")                              # 2017~2019 해설: 0 이 E03D
         elif 0x2780 <= o <= 0x2784: out.append(CIR[o - 0x2780])      # ➀~➄
         elif 0x24F5 <= o <= 0x24F9: out.append(CIR[o - 0x24F5])      # ⓵~⓹ (평가원형 글머리 숫자)
         elif ch in CIR or ch.isdigit(): out.append(ch)

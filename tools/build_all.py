@@ -25,8 +25,18 @@ for _y, _d in _M.items():
 # 2020 (2015 개정): 3학년은 가형/나형 별도 시험지. 가형 먼저. 중복(동일) 문항은 가형만 수록 (data/dup2020.json)
 EXAMS += [(2020, g, m) for g in (1, 2) for m in (3, 6, 9, 11)]
 EXAMS += [(2020, 3, m, f) for m in (3, 4, 6, 7, 9, 10, 11) for f in ("가", "나")]
+# 2017~2019 (2009 개정): 2·3학년이 가형/나형 별도 시험지. 1학년은 단일. 중복 문항은 data/dup2017_19.json
+for _y in (2017, 2018, 2019):
+    EXAMS += [(_y, 1, m) for m in (3, 6, 9, 11)]
+    EXAMS += [(_y, 2, m, f) for m in (3, 6, 9, 11) for f in ("가", "나")]
+    EXAMS += [(_y, 3, m, f) for m in (3, 4, 6, 7, 9, 10, 11) for f in ("가", "나")]
 FORM_ID = {None: "", "가": "-ga", "나": "-na"}
 REDETECT = "--redetect" in sys.argv     # 검출 결과는 data/detect/ 에 저장해 두고 재사용 (검출 코드를 고쳤을 때만 --redetect)
+
+def has_text(path):
+    import pdfplumber
+    with pdfplumber.open(path) as pdf:
+        return sum(len(p.chars) for p in pdf.pages[:2]) > 50
 
 def r1(v): return round(float(v), 1)
 def box(b):
@@ -63,6 +73,7 @@ def main():
     x6 = load_xlsx_class(os.path.join(ROOT, "data/classification_2021_06.xlsx"))
     exams, problems = {}, []
     dup = json.load(open(os.path.join(ROOT, "data/dup2020.json"), encoding="utf-8"))
+    dup2 = json.load(open(os.path.join(ROOT, "data/dup2017_19.json"), encoding="utf-8")) if os.path.exists(os.path.join(ROOT, "data/dup2017_19.json")) else {}
     for ex in EXAMS:
         year, g, month = ex[:3]; form = ex[3] if len(ex) > 3 else None
         old = (year >= 2021)                      # 2021~: 공통+선택 구조, 2020: 단일 시험지
@@ -81,23 +92,28 @@ def main():
                     it["type"] = "선택형" if it["n"] <= 21 else "단답형"
             else:
                 q = detect_q.detect(os.path.join(ROOT, qf), elective=(g == 3 and old)); detect_q.attach_meta(os.path.join(ROOT, qf), q)
-            a = detect_a.detect(os.path.join(ROOT, af), elective=(g == 3 and old))
+            if has_text(os.path.join(ROOT, af)):
+                a = detect_a.detect(os.path.join(ROOT, af), elective=(g == 3 and old))
+            else:                                           # 스캔(글자 없는) 해설: OCR 로 번호 줄을 찾는다
+                import detect_a_img
+                a = detect_a_img.detect(os.path.join(ROOT, af))
             os.makedirs(os.path.dirname(cp), exist_ok=True)
             json.dump([q, a], open(cp, "w", encoding="utf-8"), ensure_ascii=False)
         a["columns"] = [tuple(c) for c in a["columns"]]
         if "--detect-only" in sys.argv: print(eid, "검출", len(q["items"]), len(a["items"])); continue
-        if year == 2020:
+        if year <= 2020:
             sfx = {None: "", "가": "_ga", "나": "_na"}[form]
             cls = load_json_class(year, g, month, codes, sfx)
         else:
             cls = x6 if (year, month) == (2021, 6) else load_json_class(year, g, month, codes)
         exams[eid] = dict(year=year, grade=g, month=month, form=form, q=dict(file=qf, w=r1(q["width"]), h=r1(q["height"])),
                           a=dict(file=af, w=r1(a["width"]), h=r1(a["height"]), colw=r1(max(c[1] - c[0] for c in a["columns"]))))
+        if exams[eid]["a"]["colw"] > 450: exams[eid]["a"]["wide"] = True        # 한 단짜리 해설지 (layout.js 전폭 블록)
         amap = {(i["sec"], i["n"]): i for i in a["items"]}
         e = ans[eid]
         drop, also = set(), {}                                      # 2020 3학년 가/나형 중복 처리 (data/dup2020.json)
-        if year == 2020 and g == 3:
-            dm = dup[str(month)]
+        if form and year <= 2020:
+            dm = dup[str(month)] if (year == 2020 and g == 3) else dup2.get(f"{year}-{g}-{month}", {"same": {}, "variant": [], "delete": []})
             for nb, na in dm["same"].items():
                 drop.add(("나", int(nb))); also[("가", int(na))] = f"나형 {nb}번"
             for v in dm["variant"]:

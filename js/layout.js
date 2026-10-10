@@ -26,7 +26,7 @@
       ops.push({ t: 'line', x1: 40, y1: G.footRule, x2: PAGE.w - 40, y2: G.footRule, w: 0.8 });
       ops.push({ t: 'text', s: String(pageNo), x: G.left, y: G.footY, size: 10, bold: true, align: 'left' });
       if (opt.footer) ops.push({ t: 'text', s: opt.footer, x: PAGE.w - 44, y: G.footY, size: 8.5, bold: false, align: 'right', italic: true });
-      const pg = { ops };
+      const pg = { ops, div: ops[2] };
       pages.push(pg);
       return pg;
     }
@@ -73,11 +73,23 @@
 
     /* ---------- 2) 해설 파트: 미주(2단 흐름) ---------- */
     if (opt.solutions && problems.length) {
-      pg = newPage(); col = 0; let y = G.top;
+      pg = newPage(); col = 0; let y = G.top, pageTop = G.top;
       const room = () => G.bottom - y;
       function advance() {
-        if (col === 0) { col = 1; } else { pg = newPage(); col = 0; }
-        y = G.top;
+        if (col === 0) { col = 1; y = pageTop; } else { pg = newPage(); col = 0; pageTop = G.top; y = G.top; }
+      }
+      /* 한 단짜리 해설지(예: 2019학년도 10월, A3 한 단)는 두 단 폭으로 크게 붙인다 (전폭 블록).
+       * 쪽 중간에서 시작하면 그 위쪽의 가운데 세로선은 블록 앞에서 끊고, 블록 아래에서 다시 시작한다. */
+      const FULLW = G.col1X + G.colW - G.left;
+      function wideStart() {
+        if (col === 1) { pg = newPage(); col = 0; pageTop = G.top; y = G.top; }
+      }
+      function wideBreak(h) {          // 블록이 들어갈 자리 확보, 세로선 정리
+        if (h > G.bottom - y + 0.01) { pg = newPage(); col = 0; pageTop = G.top; y = G.top; }
+      }
+      function divCut(y0, y1) {
+        if (pg.div) { if (y0 <= pg.div.y1 + 1) { pg.div.y2 = pg.div.y1; } else pg.div.y2 = y0; }
+        if (y1 < G.bottom - 2) { const d = { t: 'line', x1: G.divX, y1: y1, x2: G.divX, y2: G.bottom, w: 0.8 }; pg.ops.push(d); pg.div = d; } else pg.div = null;
       }
       function ensure(h) { if (h > room() + 0.01) advance(); }
 
@@ -109,6 +121,25 @@
           ensure(HDR + 4);
           pg.ops.push({ t: 'text', s: `${pad4(i)}  [정답] ${p.answer || '-'}  [단원] ${p.subject} > ${p.unit}  (해설 없음)`, x: colX(col) + 2, y: y + 11, size: 9.5, bold: true, align: 'left' });
           y += HDR + 8; return;
+        }
+        if (ea.wide) {            // 한 단짜리 해설지: 전폭 블록
+          const sw = Math.min(FULLW / ea.colw, opt.solCap);
+          wideStart();
+          const blockH = HDR + 4 + (p.a[0].b - p.a[0].t) * sw;
+          wideBreak(blockH);
+          const ys = y;
+          pg.ops.push({ t: 'text', s: `${pad4(i)}  [정답] ${p.answer}  [단원] ${p.subject} > ${p.unit}`, x: G.left + 2, y: y + 11, size: 9.5, bold: true, align: 'left' });
+          y += HDR;
+          let segStart = ys;
+          p.a.forEach((b) => {
+            const bh = (b.b - b.t) * sw, bw = (b.x1 - b.x0) * sw;
+            if (bh + 2 > G.bottom - y + 0.01) { divCut(segStart, y); pg = newPage(); col = 0; pageTop = G.top; y = G.top; segStart = y; }
+            pg.ops.push({ t: 'crop', file: ea.file, page: b.p, ph: ea.h, src: [b.x0, b.t, b.x1, b.b], dest: [G.left, y, bw, bh] });
+            if (b.num) { const n = b.num; pg.ops.push({ t: 'rect', x: G.left + (n[0] - b.x0) * sw - 2, y: y + (n[1] - b.t) * sw - 3, w: (n[2] - n[0]) * sw + 5, h: (n[3] - n[1]) * sw + 5, fill: '#ffffff' }); }
+            y += bh + 2;
+          });
+          y += 8; divCut(segStart, y); pageTop = y; col = 0;
+          return;
         }
         const hmax = Math.max(...p.a.map((b) => b.b - b.t));
         const s = Math.min(G.colW / ea.colw, opt.solCap, (colH - HDR - 4) / hmax);

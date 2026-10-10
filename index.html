@@ -93,8 +93,10 @@
   
   .morebar { display:flex; align-items:center; justify-content:center; gap:8px; height:28px; position:relative; }
   .morebar button { border:none; background:none; padding:0 14px; height:24px; display:flex; align-items:center; color:var(--sub); }
-  .morebar svg { width:28px; height:28px; transition:transform .15s; }
-  .morebar button.open svg { transform:rotate(180deg); }
+  .morebar svg { width:26px; height:26px; }
+  .morebar .mn { display:none; }
+  .morebar button.open .mn { display:block; }
+  .morebar button.open .pl { display:none; }
   .filters.extras { display:grid; grid-template-columns:1fr 1fr; column-gap:24px; row-gap:12px; align-items:start; position:relative; }
   .filters.extras::before { content:''; position:absolute; left:50%; top:0; bottom:12px; width:1px; background:var(--line); }
   .filters.extras > div h3 { margin-top:0; }
@@ -218,9 +220,9 @@
   </div>
   <div class="wrap" id="wrap" hidden>
     <aside class="card side" id="side" hidden>
-      <div class="sidehead"><h2 id="sideTitle"></h2><button id="btnBack" aria-label="처음으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6L3.5 10l4 4"/><path d="M3.5 10h11.5a5 5 0 0 1 0 10H7"/></svg></button></div>
+      <div class="sidehead"><h2 id="sideTitle"></h2><button id="btnBack" aria-label="처음으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6L3.5 10l4 4"/><path d="M3.5 10h11.5a5 5 0 0 1 0 10H7"/></svg></button></div>
       <div class="filters" id="filters"></div>
-      <div class="morebar"><button id="btnMore" aria-label="배점, 문항 유형 더 보기"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 7 6-7z"/></svg></button></div>
+      <div class="morebar"><button id="btnMore" aria-label="배점, 문항 유형 더 보기"><svg class="pl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.2"/><path d="M12 7.2v9.6M7.2 12h9.6" stroke-width="2.8"/></svg><svg class="mn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.2"/><path d="M7.2 12h9.6" stroke-width="2.8"/></svg></button></div>
       <div class="collapse" id="extrasWrap"><div class="collapse-in"><div class="filters extras" id="extras"></div></div></div>
       <div class="sidefoot">
         <span id="total"></span>

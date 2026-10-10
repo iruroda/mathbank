@@ -21,6 +21,16 @@ def page_frame(p):
     if vbots and not bot_rules: bottom = min(bottom, max(vbots) + (2 if p.height > 1000 else 12))   # 단 구분선이 끝나는 곳까지가 본문(쪽번호 제외)
     return x0, x1, top, bottom
 
+def _gaps(cov, x0, x1, thr):
+    xs = range(int(x0), int(x1)+1); out, s = [], None
+    for x in xs:
+        lo = cov[x] <= thr
+        if lo and s is None: s = x
+        if not lo and s is not None:
+            if x-s >= 6 and s > x0+5 and x-1 < x1-5: out.append((s, x-1))
+            s = None
+    return out
+
 def occupancy_columns(pdf, x0, x1, top, bottom):
     cov = [0]*int(x1+2)
     for p in pdf.pages:
@@ -33,6 +43,7 @@ def occupancy_columns(pdf, x0, x1, top, bottom):
                 for x in range(int(o["x0"]), int(o["x1"])+1):
                     if x < len(cov): cov[x] += 1
     thr = max(2, len(pdf.pages)//3)
+    if not _gaps(cov, x0, x1, thr): thr = max(thr, int(0.05*max(cov)))      # 잡음이 낀 PDF: 문턱을 최대 점유의 5%로
     xs = range(int(x0), int(x1)+1)
     low = [cov[x] <= thr for x in xs]
     # 낮은 점유 구간(간격) 찾기
@@ -79,12 +90,12 @@ def char_marks(p):
         num = []
         for d in cand:                       # '[' 바로 왼쪽의 '.'부터 연속된 숫자만
             if not num:
-                if d["text"] in ".．" and c["x0"]-d["x1"] < 12: num.append(d)
+                if (d["text"] in ".．" or (d["text"].isdigit() and not pre)) and c["x0"]-d["x1"] < 12: num.append(d)
             elif num[-1]["x0"]-d["x1"] < 2.5 and d["text"].isdigit(): num.append(d)
             else: break
         num.reverse()
         t = "".join(d["text"] for d in num).replace("．", ".")
-        m = re.fullmatch(r"(\d{1,2})\.", t)
+        m = re.fullmatch(r"(\d{1,2})\.?", t)
         if not m: continue
         out.append((int(m.group(1)), num[0]["x0"], min(d["top"] for d in num), num[-1]["x1"], max(d["bottom"] for d in num)))
     return out
@@ -131,6 +142,9 @@ def detect(path, elective=False):
             tabs = []
             if not cm:
                 cm = bold_marks(p); tabs = bold_marks.tables
+            else:                              # 글자 검출이 놓친 번호는 굵은 점 검출로 보충
+                have = {m[0] for m in cm}
+                cm = cm + [m for m in bold_marks(p) if m[0] is not None and m[0] not in have and not (m[0] == 30 and pi == 0)]
             for ci, (cl, cr) in enumerate(cols):
                 cw = [w for w in words if cl-2 <= w["x0"] < cr and top-8 <= w["top"] < bottom]
                 for w in cw:

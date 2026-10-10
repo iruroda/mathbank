@@ -7,8 +7,8 @@
     ['grade', '학년', (p) => p.grade + '학년'],
     ['year', '연도', (p) => p.year + '년'],
     ['month', '월', (p) => p.month + '월'],
-    ['form', '가형/나형(2020)', (p) => (p.form ? p.form + '형' : '해당 없음')],
-    ['sec', '선택과목(2021-2022)', (p) => p.sec],
+    ['form', '가형/나형(2학년 2017-2019, 3학년 2017-2020)', (p) => (p.form ? p.form + '형' : '해당 없음')],
+    ['sec', '선택과목(3학년 2021-2026)', (p) => p.sec],
     ['subject', '과목', (p) => subjDisp(p.subject)],
     ['points', '배점', (p) => (p.points == null ? '-' : p.points + '점')],
     ['type', '문항 유형', (p) => typeName(p.type)],
@@ -51,10 +51,11 @@
   }
   const picked = () => visible().filter((p) => !excluded.has(p.id));
 
-  // 가형/나형은 3학년+2020년, 선택과목은 3학년+2021·2022년, 단원 묶음은 그 과목을 골랐을 때만 보인다
+  // 가형/나형은 (2학년+2017~2019년) 또는 (3학년+2017~2020년), 선택과목은 3학년+2021~2026년, 단원 묶음은 그 과목을 골랐을 때만 보인다
+  const anyYear = (a, b) => { for (let y = a; y <= b; y++) if (inc('year', y + '년')) return true; return false; };
   const GATE = {
-    form: () => inc('grade', '3학년') && inc('year', '2020년'),
-    sec: () => inc('grade', '3학년') && (inc('year', '2021년') || inc('year', '2022년')),
+    form: () => (inc('grade', '2학년') && anyYear(2017, 2019)) || (inc('grade', '3학년') && anyYear(2017, 2020)),
+    sec: () => inc('grade', '3학년') && anyYear(2021, 2026),
   };
   const groupTimers = {};
   // 다른 묶음의 현재 선택으로 볼 때, 이 묶음의 어떤 값에 문항이 한 개라도 있는지 (아직 안 고른 묶음은 제한 없음으로 본다)
@@ -538,8 +539,8 @@
     DISP_ORDER = [...new Set(SUBJ_ORDER.map(subjDisp))];
     SUBJ_ORDER.forEach((s) => { FIELDS.push(['u:' + s, s, (p) => (p.subject === s ? p.unit : null)]); GATE['u:' + s] = () => inc('subject', subjDisp(s)); });
     FN = Object.fromEntries(FIELDS.map((f) => [f[0], f[2]]));
-    FN.form = (p) => (p.form ? p.form + '형' : null);                           // 가형/나형: 2020년 3학년 문항만 다룬다
-    FN.sec = (p) => (p.grade === 3 && p.year >= 2021 ? p.sec : null);         // 선택과목: 2021·2022년 3학년 문항만 다룬다 (둘은 서로 병렬)
+    FN.form = (p) => (p.form ? p.form + '형' : null);                           // 가형/나형: 2017~2020년 가형·나형 시험지 문항만 다룬다
+    FN.sec = (p) => (p.grade === 3 && p.year >= 2021 ? p.sec : null);         // 선택과목: 2021년 이후 3학년 문항만 다룬다
     $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
     $('btnDetail').onclick = () => { detail = !detail; refresh(); };
     $('total').style.minWidth = (Math.max(5, String(ALL.length).length) + 3) + 'ch';   // 숫자가 바뀌어도 버튼 폭이 흔들리지 않게
