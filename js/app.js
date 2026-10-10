@@ -170,7 +170,7 @@
     const yAv = ((k === 'year' && mode === 'unit') || k === 'points' || k === 'type') ? availVals(k) : null;
     const availKeys = k === 'month' ? keys.filter((v) => !EXTRA_MONTHS.includes(v) || inc('grade', '3학년')) : keys;
     keys.forEach((v) => {
-      const c = chip(k, v, 0, availKeys, k === 'u:이산수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined);   // 버튼 글씨만 다르게, 문항 정보는 그대로
+      const c = chip(k, v, 0, availKeys, k === 'u:이산 수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined);   // 버튼 글씨만 다르게, 문항 정보는 그대로
       if (yAv && !yAv.has(v)) { if (c.classList.contains('on')) c.classList.add('dim'); else c.disabled = true; }   // 고른 것은 옅어지고(선택 유지), 안 고른 것은 비활성
       if (k === 'month' && EXTRA_MONTHS.includes(v)) { c.classList.add('cx'); if (monthExtraOn) c.classList.add('open'); }
       wrap.appendChild(c);

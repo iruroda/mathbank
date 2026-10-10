@@ -49,7 +49,7 @@ def load_xlsx_class(xlsx):
     out = {}
     for r in ws.iter_rows(min_row=2, values_only=True):
         _, label, yr, g, mo, n, sec, subj, unit, code, std, yoji, note = r
-        out[(int(yr), int(g), int(str(mo).replace("월", "")), sec or "공통", int(n))] = dict(subject=subj, unit=unit, code=code, standard=std, summary=yoji, note=note or "")
+        out[(int(yr), int(g), int(str(mo).replace("월", "")), sec or "공통", int(n))] = dict(subject=(subj or '').replace('이산수학', '이산 수학'), unit=unit, code=code, standard=std, summary=yoji, note=note or "")
     return out
 
 def load_json_class(year, g, m, codes, sfx=""):
@@ -58,9 +58,7 @@ def load_json_class(year, g, m, codes, sfx=""):
     for key, v in d.items():
         sec = SEC_KEY[key[0]]; n = int(key[1:])
         c = v["code"]
-        if c == "12이수01-01": info = ISU
-        else:
-            ci = codes[c]; info = dict(subject=ci["subject"], unit=ci["unit"], standard=ci["text"])
+        ci = codes[c]; info = dict(subject=ci["subject"], unit=ci["unit"], standard=ci["text"])
         out[(year, g, m, sec, n)] = dict(subject=info["subject"], unit=info["unit"], code=c, standard=info["standard"], summary=v["summary"], note=v.get("note") or "")
     return out
 
@@ -137,10 +135,12 @@ def main():
         print(eid, cnt, "문제", len(a["items"]), "해설")
     if "--detect-only" in sys.argv: return
     units, seen = [], set()      # 성취기준 파일의 순서대로 (과목, 단원) 목록 -> 화면 정렬용
+    used = {(p["subject"], p["unit"]) for p in problems}
     for c in codes.values():
         k = (c["subject"], c["unit"])
+        # 이산 수학·고급 과목은 해당 문항이 나온 단원만 화면에 올린다 (아직 안 나온 단원은 제외)
+        if (k[0] == "이산 수학" or k[0].startswith("고급")) and k not in used: continue
         if k not in seen: seen.add(k); units.append(list(k))
-    units.append([ISU["subject"], ISU["unit"]])
     json.dump(dict(version=2, units=units, exams=exams, problems=problems), open(os.path.join(ROOT, "data/problems.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     print(len(problems), "problems")
 
