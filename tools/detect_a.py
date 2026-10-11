@@ -80,11 +80,15 @@ def char_marks(p):
     out = []
     for k, c0 in enumerate(ch):
         if c0["text"] == "동" and any(d["text"] == "일" and abs(d["top"]-c0["top"]) < 3 and -2 <= d["x0"]-c0["x1"] < 4 for d in ch):
-            # '[가형 2번과 동일]' 처럼 다른 형과 같은 문항 (해설 본문 없음): 가장 가까운 왼쪽 '[' 를 머리표로
-            br = [d for d in ch if d["text"] == "[" and abs(d["top"]-c0["top"]) < 3 and 0 < c0["x0"]-d["x1"] < 90]
-            if not br: continue
-            pre = [max(br, key=lambda d: d["x1"])]
-        else:
+            # '[가형 2번과 동일]' / '11.A형17번과동일' 처럼 다른 형과 같은 문항 (해설 본문 없음): 같은 줄 앞쪽의 'N.' 을 머리표로
+            line = sorted([d for d in ch if abs(d["top"]-c0["top"]) < 3 and c0["x0"]-130 <= d["x0"] < c0["x0"]], key=lambda d: d["x0"])
+            txt = "".join(d["text"] for d in line); m0 = re.match(r"\D{0,2}?(\d{1,2})\.", txt)
+            if not m0: continue
+            k0 = txt.index(".", m0.start(1)); num = line[m0.start(1):k0+1]
+            if not (num and num[0]["x0"] <= (line[0]["x0"] + 12)): continue
+            out.append((int(m0.group(1)), num[0]["x0"], min(d["top"] for d in num), num[-1]["x1"], max(d["bottom"] for d in num)))
+            continue
+        if True:
             if c0["text"] != "출": continue
             tail = [d for d in ch if abs(d["top"]-c0["top"]) < 3 and 0 <= d["x0"]-c0["x1"]+2 < 40 and d["text"] in "제의도"]
             if len({d["text"] for d in tail}) < 3: continue

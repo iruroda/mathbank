@@ -32,7 +32,17 @@ def find_columns(dark, top, bot):
     for r in rs:
         if m and r[0] - m[-1][1] < 12: m[-1] = (m[-1][0], r[1])
         else: m.append(r)
-    return [r for r in m if r[1] - r[0] > 150]
+    m = [r for r in m if r[1] - r[0] > 150]
+    if len(m) == 1 and m[0][1] - m[0][0] > 0.6 * W:      # 단 구분선이 없는 2단 편집: 가운데의 가장 긴 빈 구간으로 나눈다
+        lo, hi = int(W * .4), int(W * .6)
+        ink = dark[max(top, int(H * .3)):bot, lo:hi].sum(0) > 8
+        gaps = [(a + lo, b + lo) for a, b in runs(~ink)]
+        if gaps:
+            a, b = max(gaps, key=lambda g: g[1] - g[0])
+            if b - a >= 12:
+                mid = (a + b) // 2
+                return [(m[0][0], a), (b, m[0][1])]
+    return m
 
 def ocr_marks(img, x0, x1):
     """열 이미지를 OCR 해 번호 후보 [(번호, 좌, 위, 우, 아래)] (px)"""
@@ -92,7 +102,7 @@ def detect(path, expect=30):
     for pi, (im, dark, H, W, top) in enumerate(pages):
         for ci, (c0, c1) in enumerate(pcols[pi]):
             for n, l, tp, r, b in ocr_marks(im, c0, c1):
-                if l - c0 > 45: continue          # 단의 왼쪽 끝에 붙은 번호만
+                if l - c0 > 60: continue          # 단의 왼쪽 끝에 붙은 번호만
                 if tp < top and pi == 0: continue
                 allm.append((pi, ci, tp, n, l, tp, r, b))
     allm.sort(key=lambda e: (e[0], e[1], e[2]))

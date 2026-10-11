@@ -29,6 +29,7 @@ EXAMS += [(2020, 3, m, f) for m in (3, 4, 6, 7, 9, 10, 11) for f in ("가", "나
 for _y in (2014, 2015, 2016):
     EXAMS += [(_y, 1, m) for m in (3, 6, 9, 11)]
     EXAMS += [(_y, 2, m, f) for m in (3, 6, 9, 11) for f in (("A", "B") if _y == 2014 else ("가", "나"))]
+    EXAMS += [(_y, 3, m, f) for m in (3, 4, 6, 7, 9, 10, 11) for f in (("A", "B") if _y <= 2015 else ("가", "나"))]
 # 2017~2019 (2009 개정): 2·3학년이 가형/나형 별도 시험지. 1학년은 단일. 중복 문항은 data/dup2017_19.json
 for _y in (2017, 2018, 2019):
     EXAMS += [(_y, 1, m) for m in (3, 6, 9, 11)]
