@@ -18,7 +18,7 @@
   const subjDisp = (s) => (MID_SUBJECTS.includes(s) ? '중학교 수학' : s);
   const typeName = (t) => t;
   const TYPE_ORDER = ['선택형', '단답형'];
-  let DATA = null, ALL = [], filters = {}, allOn = new Set(), excluded = new Set(), mode = null, detail = false, query = '', moreOpen = false, busy = false;
+  let DATA = null, ALL = [], filters = {}, allOn = new Set(), excluded = new Set(), mode = null, detail = false, query = '', moreOpen = false, yearMoreOpen = false, busy = false;
   const opts = { title: '전국연합 및 모의평가 기출 연습문제', footer: '우리는 알아야만 한다. 우리는 알게 될 것이다. - David Hilbert', layout: 'auto', sol: '1' };
 
   const cmp = (a, b) => a.year - b.year || a.grade - b.grade || a.month - b.month || (a.form || '').localeCompare(b.form || '', 'ko') || SEC_RANK[a.sec] - SEC_RANK[b.sec] || a.n - b.n;
@@ -128,10 +128,11 @@
       monthExtraOn = extraNow; void box.offsetWidth;
       box.querySelectorAll('.chip.cx').forEach((c) => c.classList.toggle('open', extraNow));
     }
-    if (yearExtraOn !== moreOpen) {                               // 연도 칩이 펼쳐지고 접히는 애니메이션
-      yearExtraOn = moreOpen; void box.offsetWidth;
-      box.querySelectorAll('.chip.cy').forEach((c) => c.classList.toggle('open', moreOpen));
+    if (yearExtraOn !== yearMoreOpen) {                           // 연도 칩이 펼쳐지고 접히는 애니메이션
+      yearExtraOn = yearMoreOpen; void box.offsetWidth;
+      box.querySelectorAll('.chip.cy').forEach((c) => c.classList.toggle('open', yearMoreOpen));
     }
+    box.querySelectorAll('.chip.yp').forEach((c) => { c.textContent = yearMoreOpen ? '−' : '+'; c.setAttribute('aria-expanded', yearMoreOpen); });
     if (moreOpen) { $('extras').innerHTML = ''; ['points', 'type'].forEach((k) => { const d = document.createElement('div'); d.appendChild(buildGroup(k)); $('extras').appendChild(d); }); }   // 닫히는 동안에는 내용을 그대로 둔다
   }
   const INFO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="10.4" stroke-width="2"/><circle cx="12" cy="7.5" r="1.45" fill="currentColor" stroke="none"/><path d="M12 11v6.6" stroke-width="2.5"/></svg>';
@@ -210,6 +211,12 @@
     const yAv = ((k === 'year' && mode === 'unit') || k === 'points' || k === 'type') ? availVals(k) : null;
     const availKeys = k === 'month' ? keys.filter((v) => !EXTRA_MONTHS.includes(v) || inc('grade', '3학년')) : keys;
     keys.forEach((v, vi) => {
+      if (k === 'year' && vi === YEARS_SHOWN) {   // 이전 연도 펼치기/접기 (삼각형과는 별개)
+        const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'chip yp'; pb.textContent = yearMoreOpen ? '−' : '+';
+        pb.setAttribute('aria-label', '이전 연도 펼치기/접기'); pb.setAttribute('aria-expanded', yearMoreOpen);
+        pb.onclick = () => { yearMoreOpen = !yearMoreOpen; refresh(); };
+        wrap.appendChild(pb);
+      }
       const c = chip(k, v, 0, availKeys, k === 'u:이산 수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined);   // 버튼 글씨만 다르게, 문항 정보는 그대로
       if (yAv && !yAv.has(v)) { if (c.classList.contains('on')) c.classList.add('dim'); else c.disabled = true; }   // 고른 것은 옅어지고(선택 유지), 안 고른 것은 비활성
       if (k === 'month' && EXTRA_MONTHS.includes(v)) { c.classList.add('cx'); if (monthExtraOn) c.classList.add('open'); }
@@ -388,7 +395,7 @@
     await wait(480);
     side.classList.remove('reveal');
   }
-  function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearPreset = null; subjPreset = null; monthExtraOn = false; yearExtraOn = false; }
+  function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearMoreOpen = false; yearPreset = null; subjPreset = null; monthExtraOn = false; yearExtraOn = false; }
   async function goHome() {
     if (animating) return;
     if (reduceMotion() || !mode) { resetState(); refresh(); return; }
