@@ -5,7 +5,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SEC_RANK = {"공통": 0, "확률과 통계": 1, "미적분": 2, "기하": 3}
+SEC_RANK = {"공통": 0, "미분과 적분": 1, "확률과 통계": 2, "미적분": 3, "기하": 4, "이산수학": 5}
 d = json.load(open(os.path.join(ROOT, "data/problems.json"), encoding="utf-8"))
 probs = sorted(d["problems"], key=lambda p: (p["year"], p["grade"], p["month"], p.get("form") or "", SEC_RANK[p["sec"]], p["n"]))
 def suffix(p):   # 2021~ 3학년은 (선택과목), 2020 3학년은 (가형/나형)
@@ -26,7 +26,7 @@ notes = {}
 x6 = openpyxl.load_workbook(os.path.join(ROOT, "data/classification_2021_06.xlsx"))["문항 분류"]
 for r in x6.iter_rows(min_row=2, values_only=True):
     notes[(int(r[2]), int(r[3]), 6, None, r[6] or "공통", int(r[5]))] = r[12]
-SEC_KEY = {"C": "공통", "P": "확률과 통계", "K": "미적분", "G": "기하"}
+SEC_KEY = {"C": "공통", "P": "확률과 통계", "K": "미적분", "G": "기하", "D": "미분과 적분", "S": "이산수학"}
 for f in os.listdir(os.path.join(ROOT, "data/classification")):
     parts = f[:-5].split("_"); y, g, m = parts[:3]; fm = {"ga": "가", "na": "나", "A": "A", "B": "B"}.get(parts[3]) if len(parts) > 3 else None
     dd = json.load(open(os.path.join(ROOT, "data/classification", f), encoding="utf-8"))

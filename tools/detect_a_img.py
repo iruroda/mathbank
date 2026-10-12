@@ -66,7 +66,7 @@ def ocr_marks(img, x0, x1):
         res.append((int(mt.group(1)), l, tp, r_, b))
     return res
 
-def detect(path, expect=30):
+def detect(path, expect=30, no_header=False, old7=False):
     pdf = pdfium.PdfDocument(path)
     pages = []; W0 = H0 = None
     for pi in range(len(pdf)):
@@ -76,7 +76,7 @@ def detect(path, expect=30):
         if W0 is None: W0, H0 = W / S, H / S
         # 첫 쪽 머리(제목 상자)를 건너뛴다
         top = 0
-        if pi == 0:
+        if pi == 0 and not no_header:
             rows = dark[:, int(W*.03):int(W*.97)].any(1)
             rs = runs(rows); g = [list(rs[0])] if rs else []
             for r in rs[1:]:
@@ -107,9 +107,12 @@ def detect(path, expect=30):
                 allm.append((pi, ci, tp, n, l, tp, r, b))
     allm.sort(key=lambda e: (e[0], e[1], e[2]))
     marks = []
+    SEC7 = ["공통", "미분과 적분", "확률과 통계", "이산수학"]; sec_i = 0
     for e in allm:
-        if e[3] == last + 1 and last < expect:
-            marks.append(e); last = e[3]
+        if old7 and e[3] == 26 and last in (25, 30) and sec_i < 3:       # 7차 선택과목: 26~30 이 세 번 반복
+            sec_i += 1; marks.append(e + (SEC7[sec_i],)); last = 26; continue
+        if e[3] == last + 1 and (last < expect if not old7 else last < 30):
+            marks.append(e + (SEC7[sec_i],)); last = e[3]
     # 흐름: 쪽 -> 단
     flow = [(pi, ci) for pi in range(len(pages)) for ci in range(len(pcols[pi]))]
     items = []
@@ -142,7 +145,7 @@ def detect(path, expect=30):
             b = dict(page=pi, x0=c0 / S - 3, x1=c1 / S + 3, top=t / S, bottom=(bt + 5) / S)
             boxes.append(b)
         if boxes: boxes[0]["num"] = dict(x0=mk[4] / S, top=mk[5] / S, x1=mk[6] / S, bottom=mk[7] / S)
-        items.append(dict(n=mk[3], sec="공통", boxes=boxes))
+        items.append(dict(n=mk[3], sec=mk[8], boxes=boxes))
     return dict(width=W0, height=H0, columns=[(c0 / S - 3, c1 / S + 3) for c0, c1 in cols], items=items)
 
 if __name__ == "__main__":

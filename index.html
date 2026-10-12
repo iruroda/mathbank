@@ -81,8 +81,12 @@
   :focus-visible { outline-color:var(--acc); }
   .chip:disabled, .chip.on:disabled { opacity:1; cursor:default; color:var(--line); background:var(--card); border-color:var(--line); }
   .chip.dim { opacity:.45; }
-  .chip.cx { max-width:0; padding-left:0; padding-right:0; margin-left:-6px; border-width:0; opacity:0; overflow:hidden; visibility:hidden; pointer-events:none; white-space:nowrap; transition:max-width .32s ease, padding .32s ease, margin .32s ease, border-width .32s ease, opacity .32s ease, visibility 0s .32s; }
-  .chip.cx.open { max-width:90px; padding-left:10px; padding-right:10px; margin-left:0; border-width:1px; opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
+  .chip.cx, .chip.cy { max-width:0; padding-left:0; padding-right:0; margin-left:-6px; border-width:0; opacity:0; overflow:hidden; visibility:hidden; pointer-events:none; white-space:nowrap; transition:max-width .32s ease, padding .32s ease, margin .32s ease, border-width .32s ease, opacity .32s ease, visibility 0s .32s; }
+  .chip.cx.open, .chip.cy.open { max-width:90px; padding-left:10px; padding-right:10px; margin-left:0; border-width:1px; opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
+  .infobtn { border:none; background:none; padding:0; width:1em; height:1em; flex:none; display:inline-flex; align-items:center; justify-content:center; color:var(--sub); }
+  .infobtn svg { width:100%; height:100%; display:block; }
+  .infomodal { min-width:min(86vw,320px); }
+  .infolist { margin:0; padding-left:20px; line-height:1.7; font-size:14px; }
   .chip.on { background:var(--acc); border-color:var(--acc); color:var(--onacc); }
   .sidehead { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; }
   .sidehead h2 { margin:0; font-size:16px; }
@@ -91,12 +95,12 @@
   .sidehead button { width:36px; height:32px; padding:0; border:none; background:none; display:flex; align-items:center; justify-content:center; color:var(--sub); }
   .sidehead svg { width:20px; height:20px; }
   
+  .morebar { overflow:hidden; transition:height .32s ease, opacity .32s ease; }
+  .morebar.gone { height:0 !important; opacity:0; pointer-events:none; }
   .morebar { display:flex; align-items:center; justify-content:center; gap:8px; height:28px; position:relative; }
   .morebar button { border:none; background:none; padding:0 14px; height:24px; display:flex; align-items:center; color:var(--sub); }
   .morebar svg { width:26px; height:26px; }
-  .morebar .mn { display:none; }
-  .morebar button.open .mn { display:block; }
-  .morebar button.open .pl { display:none; }
+  .filters.extras + .morebar { margin-top:-4px; }
   .filters.extras { display:grid; grid-template-columns:1fr 1fr; column-gap:24px; row-gap:12px; align-items:start; position:relative; }
   .filters.extras::before { content:''; position:absolute; left:50%; top:0; bottom:12px; width:1px; background:var(--line); }
   .filters.extras > div h3 { margin-top:0; }
@@ -222,8 +226,8 @@
     <aside class="card side" id="side" hidden>
       <div class="sidehead"><h2 id="sideTitle"></h2><button id="btnBack" aria-label="처음으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6L3.5 10l4 4"/><path d="M3.5 10h11.5a5 5 0 0 1 0 10H7"/></svg></button></div>
       <div class="filters" id="filters"></div>
-      <div class="morebar"><button id="btnMore" aria-label="배점, 문항 유형 더 보기"><svg class="pl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.2"/><path d="M12 7.2v9.6M7.2 12h9.6" stroke-width="2.8"/></svg><svg class="mn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.2"/><path d="M7.2 12h9.6" stroke-width="2.8"/></svg></button></div>
-      <div class="collapse" id="extrasWrap"><div class="collapse-in"><div class="filters extras" id="extras"></div></div></div>
+      <div class="morebar" id="moreBar"><button id="btnMore" aria-label="더 보기 (이전 연도, 배점, 문항 유형)" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"><path d="M5.2 6.9h13.6L12 18.7z"/></svg></button></div>
+      <div class="collapse" id="extrasWrap"><div class="collapse-in"><div class="filters extras" id="extras"></div><div class="morebar"><button id="btnLess" aria-label="접기"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"><path d="M12 5.3L18.8 17.1H5.2z"/></svg></button></div></div></div>
       <div class="sidefoot">
         <span id="total"></span>
         <button id="btnDetail">문항 목록 열기</button>
@@ -238,6 +242,7 @@
 
 <div class="overlay" id="pvOverlay"><div class="pvbox"><div class="pvhead"><b id="pvTitle"></b><button type="button" id="pvClose" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="pvbody" id="pvBody"></div></div></div>
 <div class="busy" id="busy"><div class="busybox"><button type="button" class="x" id="busyX" aria-label="취소"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><svg viewBox="0 0 100 100"><circle class="ringbg" cx="50" cy="50" r="42" fill="none" stroke-width="9"/><circle id="ringFg" cx="50" cy="50" r="42" fill="none" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.894" stroke-dashoffset="263.894" transform="rotate(-90 50 50)"/><text id="ringTxt" x="50" y="57" text-anchor="middle">0%</text></svg><div id="busyMsg">PDF 생성중입니다</div></div></div>
+<div class="overlay" id="infoOverlay"><div class="modal infomodal" role="dialog" aria-modal="true" aria-labelledby="infoTitle"><button class="x" id="infoX" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 id="infoTitle"></h2><ul class="infolist" id="infoList"></ul></div></div>
 <div class="overlay" id="overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
     <button class="x" id="mX" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -250,6 +255,6 @@
   </div>
 </div>
 <script defer src="js/layout.js?v=af3c1310"></script>
-<script defer src="js/app.js?v=c60e0888"></script>
+<script defer src="js/app.js?v=d1013a02"></script>
 </body>
 </html>

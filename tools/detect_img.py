@@ -69,8 +69,11 @@ def analyze(path):
         pages.append(dict(top=top, bot=bot, div=div, cols=cols, size=(W, H)))
     return pages
 
-def detect(path):
+def detect(path, skip_top=None, old7=False, drop=()):
+    """skip_top = {단번호: pt}: 첫 쪽에서 이 y(pt)보다 위의 줄(머리말·유의사항)은 문항으로 세지 않는다."""
+    global S
     pdf = pdfium.PdfDocument(path); PW, PH = pdf[0].get_size()
+    S = 3.0 if PW < 700 else 3.0*595/PW           # A3 크기 쪽도 같은 화소 기준(A4 환산)으로
     pages = analyze(path)
     # 단별 기준선(번호 줄 x): 줄 시작 x 의 최빈값들 중 가장 왼쪽 (보기 줄보다 왼쪽)
     M = []
@@ -84,16 +87,28 @@ def detect(path):
         for ci, c in enumerate(pg["cols"]):
             sub, rows = c["sub"], c["rows"]
             marks = [i for i, r in enumerate(rows) if not r["box"] and M[ci]-4 <= r["left"] <= M[ci]+12 and (r["e"]-r["s"]) >= 14]
+            if skip_top and pi == 0:
+                marks = [i for i in marks if (pg["top"] + rows[i]["s"]) / S >= skip_top.get(ci, 0)]
+            def _wide(ri, hmax=900):          # '26번부터 30번까지는 선택과목 문항입니다' 같은 큰 테두리 안내 상자는 번호 줄이 아니다
+                r0, r1 = rows[ri]["s"], rows[ri]["e"]
+                seg = sub[r0:r1]; xs = np.where(seg.any(0))[0]
+                if len(xs) < 2 or r1 - r0 > hmax or r1 - r0 < 60: return False
+                l, r = xs.min(), xs.max()
+                return (r - l) > 500 and seg[:, l].mean() > .8 and seg[:, r].mean() > .8
+            marks = [i for i in marks if not _wide(i)]
+            marks = [i for k, i in enumerate(marks) if (pi, ci, k) not in drop]     # 공통 지문 줄 등 번호가 아닌 줄(수동 지정)
             for k, ri in enumerate(marks):
-                if n >= 30: break
+                if n >= (40 if old7 else 30): break
                 n += 1
                 s = rows[ri]["s"]
                 nxt = rows[marks[k+1]]["s"] if k+1 < len(marks) else sub.shape[0]
                 # 이 문항에 속하는 줄: 다음 번호 전까지, 단 라벨 상자 이후는 제외
                 end = s
-                for r in rows[ri:]:
+                for rj in range(ri, len(rows)):
+                    r = rows[rj]
                     if r["s"] >= nxt: break
-                    if r["box"] and r["s"] > s + 40: break
+                    if r["box"] and r["s"] > s + 40 and all(x["box"] for x in rows[rj+1:] if x["s"] < nxt): break      # 뒤에 본문 줄이 더 있으면 그림(원호 등) 줄이 상자로 오인된 것
+                    if rj > ri and _wide(rj, 140) and not any(x["s"] < nxt for x in rows[rj+1:]): break          # 안내 상자(선택과목 안내 등) 앞에서 끊는다
                     end = r["e"]
                 top = pg["top"] + s
                 # 번호 상자(원본 번호 가리기용): 줄 안 첫 글자 덩어리(숫자+마침표)
@@ -104,7 +119,8 @@ def detect(path):
                     xb = int(v)
                 ys = np.where(sub[r0:r1, xa:xb+1].any(1))[0]
                 num = dict(x0=(c["cl"]+xa)/S, x1=(c["cl"]+xb)/S+1, top=(pg["top"]+r0+int(ys.min()))/S, bottom=(pg["top"]+r0+int(ys.max()))/S+1)
-                items.append(dict(page=pi, col=ci, n=n, sec="공통", x0=c["cl"]/S-1, x1=c["cr"]/S+0.5,
+                nn, sc = (n, "공통") if (not old7 or n <= 25) else (26 + (n-26) % 5, ["미분과 적분", "확률과 통계", "이산수학"][(n-26)//5])
+                items.append(dict(page=pi, col=ci, n=nn, sec=sc, x0=c["cl"]/S-1, x1=c["cr"]/S+0.5,
                                   top=top/S-4, bottom=(pg["top"] + end)/S + 6, num=num))
     return dict(width=PW, height=PH, items=items)
 
