@@ -99,9 +99,13 @@
   .morebar.gone { height:0 !important; opacity:0; pointer-events:none; }
   .morebar { display:flex; align-items:center; justify-content:center; gap:8px; height:28px; position:relative; }
   .morebar button { border:none; background:none; padding:0 14px; height:24px; display:flex; align-items:center; color:var(--sub); }
-  .morebar svg { width:20.8px; height:20.8px; }
-  .chip.yp { font-weight:700; padding-left:12px; padding-right:12px; }
-  .filters.extras + .morebar { margin-top:-4px; }
+  .morebar svg { width:20.8px; height:20.8px; transition:transform .32s ease; }
+  .morebar button[aria-expanded=true] svg { transform:rotate(180deg); }
+  .chip.yp { padding:0; width:30px; height:30px; justify-content:center; border:none; background:none; color:var(--sub); flex:none; }
+  .chip.yp svg { width:18px; height:18px; }
+  .chip.yp .mn { display:none; }
+  .chip.yp[aria-expanded=true] .mn { display:block; }
+  .chip.yp[aria-expanded=true] .pl { display:none; }
   .filters.extras { display:grid; grid-template-columns:1fr 1fr; column-gap:24px; row-gap:12px; align-items:start; position:relative; }
   .filters.extras::before { content:''; position:absolute; left:50%; top:0; bottom:12px; width:1px; background:var(--line); }
   .filters.extras > div h3 { margin-top:0; }
@@ -227,8 +231,8 @@
     <aside class="card side" id="side" hidden>
       <div class="sidehead"><h2 id="sideTitle"></h2><button id="btnBack" aria-label="처음으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6L3.5 10l4 4"/><path d="M3.5 10h11.5a5 5 0 0 1 0 10H7"/></svg></button></div>
       <div class="filters" id="filters"></div>
-      <div class="morebar" id="moreBar"><button id="btnMore" aria-label="더 보기 (배점, 문항 유형)" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"><path d="M5.2 6.9h13.6L12 18.7z"/></svg></button></div>
-      <div class="collapse" id="extrasWrap"><div class="collapse-in"><div class="filters extras" id="extras"></div><div class="morebar"><button id="btnLess" aria-label="접기"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"><path d="M12 5.3L18.8 17.1H5.2z"/></svg></button></div></div></div>
+      <div class="collapse" id="extrasWrap"><div class="collapse-in"><div class="filters extras" id="extras"></div></div></div>
+      <div class="morebar" id="moreBar"><button id="btnMore" aria-label="배점, 문항 유형 열기/닫기" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"><path d="M5.2 6.7h13.6L12 17.3z"/></svg></button></div>
       <div class="sidefoot">
         <span id="total"></span>
         <button id="btnDetail">문항 목록 열기</button>

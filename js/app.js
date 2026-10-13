@@ -95,6 +95,7 @@
   const EXTRA_MONTHS = ['4월', '7월', '10월'];         // 3학년을 골라야 나타나는 월
   let monthExtraOn = false, yearExtraOn = false;
   const YEARS_SHOWN = 9;
+  const PLUSMINUS = '<svg class="pl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.2"/><path d="M12 7.2v9.6M7.2 12h9.6" stroke-width="2.8"/></svg><svg class="mn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.2"/><path d="M7.2 12h9.6" stroke-width="2.8"/></svg>';
   let subjPreset = null;                     // null | 'all' | 'csat'  (과목: 전체 / 수능은 서로 겹쳐 선택되지 않는다)
   let yearPreset = null;                     // null | 'all' | 5 | 3  (전체 / 최근 5개년 / 최근 3개년은 서로 겹쳐 선택되지 않는다)
   function renderFilters() {
@@ -132,7 +133,7 @@
       yearExtraOn = yearMoreOpen; void box.offsetWidth;
       box.querySelectorAll('.chip.cy').forEach((c) => c.classList.toggle('open', yearMoreOpen));
     }
-    box.querySelectorAll('.chip.yp').forEach((c) => { c.textContent = yearMoreOpen ? '−' : '+'; c.setAttribute('aria-expanded', yearMoreOpen); });
+    box.querySelectorAll('.chip.yp').forEach((c) => { c.setAttribute('aria-expanded', yearMoreOpen); });
     if (moreOpen) { $('extras').innerHTML = ''; ['points', 'type'].forEach((k) => { const d = document.createElement('div'); d.appendChild(buildGroup(k)); $('extras').appendChild(d); }); }   // 닫히는 동안에는 내용을 그대로 둔다
   }
   const INFO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="10.4" stroke-width="2"/><circle cx="12" cy="7.5" r="1.45" fill="currentColor" stroke="none"/><path d="M12 11v6.6" stroke-width="2.5"/></svg>';
@@ -212,7 +213,7 @@
     const availKeys = k === 'month' ? keys.filter((v) => !EXTRA_MONTHS.includes(v) || inc('grade', '3학년')) : keys;
     keys.forEach((v, vi) => {
       if (k === 'year' && vi === YEARS_SHOWN) {   // 이전 연도 펼치기/접기 (삼각형과는 별개)
-        const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'chip yp'; pb.textContent = yearMoreOpen ? '−' : '+';
+        const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'chip yp'; pb.innerHTML = PLUSMINUS;
         pb.setAttribute('aria-label', '이전 연도 펼치기/접기'); pb.setAttribute('aria-expanded', yearMoreOpen);
         pb.onclick = () => { yearMoreOpen = !yearMoreOpen; refresh(); };
         wrap.appendChild(pb);
@@ -358,7 +359,7 @@
     $('btnDetail').textContent = detail ? '문항 목록 닫기' : '문항 목록 열기';
     if (!animating) { $('modes').hidden = !!mode; $('wrap').hidden = !mode; $('side').hidden = !mode; }
     $('sideTitle').textContent = mode === 'time' ? '시행 연월로 찾기' : mode === 'unit' ? '과목/단원으로 찾기' : '';
-    $('btnMore').setAttribute('aria-expanded', moreOpen); $('moreBar').classList.toggle('gone', moreOpen);
+    $('btnMore').setAttribute('aria-expanded', moreOpen);
     $('extrasWrap').classList.toggle('open', moreOpen);
     clearTimeout(extraTimer);
     if (!moreOpen) extraTimer = setTimeout(() => { if (!moreOpen) $('extras').innerHTML = ''; }, 360);
@@ -593,7 +594,7 @@
     $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
     $('btnDetail').onclick = () => { detail = !detail; refresh(); };
     $('total').style.minWidth = (Math.max(5, String(ALL.length).length) + 3) + 'ch';   // 숫자가 바뀌어도 버튼 폭이 흔들리지 않게
-    $('btnMake').onclick = make; const toggleMore = () => { moreOpen = !moreOpen; if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('btnMore').onclick = toggleMore; $('btnLess').onclick = toggleMore; $('infoX').onclick = () => $('infoOverlay').classList.remove('show'); $('infoOverlay').onclick = (e) => { if (e.target === $('infoOverlay')) $('infoOverlay').classList.remove('show'); }; $('pvClose').onclick = closePreview; $('pvOverlay').onclick = (e) => { if (e.target === $('pvOverlay')) closePreview(); };
+    $('btnMake').onclick = make; const toggleMore = () => { moreOpen = !moreOpen; if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('btnMore').onclick = toggleMore; $('infoX').onclick = () => $('infoOverlay').classList.remove('show'); $('infoOverlay').onclick = (e) => { if (e.target === $('infoOverlay')) $('infoOverlay').classList.remove('show'); }; $('pvClose').onclick = closePreview; $('pvOverlay').onclick = (e) => { if (e.target === $('pvOverlay')) closePreview(); };
     $('btnBack').onclick = goHome;
     $('btnForm').onclick = openForm;
     $('mOk').onclick = () => closeForm(true); $('mCancel').onclick = () => closeForm(false); $('mX').onclick = () => closeForm(false);
