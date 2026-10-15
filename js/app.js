@@ -129,9 +129,9 @@
       monthExtraOn = extraNow; void box.offsetWidth;
       box.querySelectorAll('.chip.cx').forEach((c) => c.classList.toggle('open', extraNow));
     }
-    if (yearExtraOn !== yearMoreOpen) {                           // 연도 칩이 펼쳐지고 접히는 애니메이션
+    if (yearExtraOn !== yearMoreOpen) {                           // 이전 연도: 다음 줄 맨 왼쪽부터 오른쪽으로 닦아내듯 열리고, 줄 칸은 서랍처럼 늘어난다
       yearExtraOn = yearMoreOpen; void box.offsetWidth;
-      box.querySelectorAll('.chip.cy').forEach((c) => c.classList.toggle('open', yearMoreOpen));
+      box.querySelectorAll('.cyw').forEach((w) => w.classList.toggle('open', yearMoreOpen));
     }
     box.querySelectorAll('.chip.yp').forEach((c) => { c.setAttribute('aria-expanded', yearMoreOpen); });
     if (moreOpen) { $('extras').innerHTML = ''; ['points', 'type'].forEach((k) => { const d = document.createElement('div'); d.appendChild(buildGroup(k)); $('extras').appendChild(d); }); }   // 닫히는 동안에는 내용을 그대로 둔다
@@ -211,6 +211,7 @@
     const wrap = document.createElement('div'); wrap.className = 'chips'; gp.appendChild(wrap);
     const yAv = ((k === 'year' && mode === 'unit') || k === 'points' || k === 'type') ? availVals(k) : null;
     const availKeys = k === 'month' ? keys.filter((v) => !EXTRA_MONTHS.includes(v) || inc('grade', '3학년')) : keys;
+    const cyIn = document.createElement('div');
     keys.forEach((v, vi) => {
       if (k === 'year' && vi === YEARS_SHOWN) {   // 이전 연도 펼치기/접기 (삼각형과는 별개)
         const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'chip yp'; pb.innerHTML = PLUSMINUS;
@@ -221,9 +222,10 @@
       const c = chip(k, v, 0, availKeys, k === 'u:이산 수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined);   // 버튼 글씨만 다르게, 문항 정보는 그대로
       if (yAv && !yAv.has(v)) { if (c.classList.contains('on')) c.classList.add('dim'); else c.disabled = true; }   // 고른 것은 옅어지고(선택 유지), 안 고른 것은 비활성
       if (k === 'month' && EXTRA_MONTHS.includes(v)) { c.classList.add('cx'); if (monthExtraOn) c.classList.add('open'); }
-      if (k === 'year' && vi >= YEARS_SHOWN) { c.classList.add('cy'); if (yearExtraOn) c.classList.add('open'); }   // 최신 9개 연도만 먼저 보이고 나머지는 + 를 눌러야 펼쳐진다
-      wrap.appendChild(c);
+      if (k === 'year' && vi >= YEARS_SHOWN) { c.classList.add('cy'); c.style.setProperty('--i', vi - YEARS_SHOWN); cyIn.appendChild(c); }   // 최신 9개 연도만 먼저 보이고 나머지는 + 를 눌러야 펼쳐진다
+      else wrap.appendChild(c);
     });
+    if (cyIn.childNodes.length) { const cw = document.createElement('div'); cw.className = 'cyw' + (yearExtraOn ? ' open' : ''); const ci = document.createElement('div'); ci.className = 'cyin'; cyIn.className = 'chips'; ci.appendChild(cyIn); cw.appendChild(ci); gp.appendChild(cw); }
     if (k === 'year') { const nt = document.createElement('div'); nt.className = 'note'; nt.textContent = '※ 수능, 모의평가는 시행 연도 기준(ex. 2027학년도 수능 → 2026년)'; gp.appendChild(nt); }
     return gp;
   }

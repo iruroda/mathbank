@@ -50,7 +50,7 @@ git add -A
 if errorlevel 1 goto :fail
 
 echo [3/5] git commit
-git commit -m "add 2023-2026 exams (56 exams, 3856 problems)"
+git commit -m "update %date% %time:~0,5%"
 rem nothing-to-commit is not an error
 
 echo [4/5] git push  (a browser window may ask you to sign in to GitHub)
