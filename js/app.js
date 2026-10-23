@@ -2,13 +2,14 @@
 (function () {
   'use strict';
   const $ = (id) => document.getElementById(id);
-  const SEC_RANK = { '공통': 0, '확률과 통계': 1, '미적분': 2, '기하': 3 };
+  const SEC_RANK = { '공통': 0, '미분과 적분': 1, '확률과 통계': 2, '미적분': 3, '기하': 4, '이산수학': 5 };
   const FIELDS = [   // [키, 이름, 값 함수]  (과목별 단원 묶음 'u:과목'은 데이터를 읽은 뒤 추가)
     ['grade', '학년', (p) => p.grade + '학년'],
     ['year', '연도', (p) => p.year + '년'],
     ['month', '월', (p) => p.month + '월'],
-    ['form', '가형/나형(2020)', (p) => (p.form ? p.form + '형' : '해당 없음')],
-    ['sec', '선택과목(2021-2022)', (p) => p.sec],
+    ['sec', '선택과목', (p) => (p.year >= 2021 ? p.sec : '해당 없음')],
+    ['form', '가형/나형', (p) => (p.form === '가' || p.form === '나' ? p.form + '형' : '해당 없음')],
+    ['ab', 'A형/B형', (p) => (p.form === 'A' || p.form === 'B' ? p.form + '형' : '해당 없음')],
     ['subject', '과목', (p) => subjDisp(p.subject)],
     ['points', '배점', (p) => (p.points == null ? '-' : p.points + '점')],
     ['type', '문항 유형', (p) => typeName(p.type)],
@@ -17,7 +18,7 @@
   const subjDisp = (s) => (MID_SUBJECTS.includes(s) ? '중학교 수학' : s);
   const typeName = (t) => t;
   const TYPE_ORDER = ['선택형', '단답형'];
-  let DATA = null, ALL = [], filters = {}, allOn = new Set(), excluded = new Set(), mode = null, detail = false, query = '', moreOpen = false, busy = false;
+  let DATA = null, ALL = [], filters = {}, allOn = new Set(), excluded = new Set(), mode = null, detail = false, query = '', moreOpen = false, yearMoreOpen = false, busy = false;
   const opts = { title: '전국연합 및 모의평가 기출 연습문제', footer: '우리는 알아야만 한다. 우리는 알게 될 것이다. - David Hilbert', layout: 'auto', sol: '1' };
 
   const cmp = (a, b) => a.year - b.year || a.grade - b.grade || a.month - b.month || (a.form || '').localeCompare(b.form || '', 'ko') || SEC_RANK[a.sec] - SEC_RANK[b.sec] || a.n - b.n;
@@ -31,7 +32,7 @@
   const fieldOf = (k) => FIELDS.find((f) => f[0] === k);
   // 화면에 보이는 묶음(모드별 순서). 과목/단원 모드: 과목, 고른 과목의 단원 묶음들, 연도
   function modeKeys(m) {
-    return m === 'time' ? ['grade', 'year', 'month', 'form', 'sec'] : ['subject', ...SUBJ_ORDER.map((s) => 'u:' + s), 'year'];
+    return m === 'time' ? ['grade', 'year', 'month', 'sec', 'form', 'ab'] : ['subject', ...SUBJ_ORDER.map((s) => 'u:' + s), 'year'];
   }
   function shownKeys() {
     if (!mode) return [];
@@ -51,11 +52,32 @@
   }
   const picked = () => visible().filter((p) => !excluded.has(p.id));
 
-  // 가형/나형은 3학년+2020년, 선택과목은 3학년+2021·2022년, 단원 묶음은 그 과목을 골랐을 때만 보인다
-  const GATE = {
-    form: () => inc('grade', '3학년') && inc('year', '2020년'),
-    sec: () => inc('grade', '3학년') && (inc('year', '2021년') || inc('year', '2022년')),
+  // 가형/나형·A형/B형·선택과목은 '월'까지 골라야 열린다. 학년·연도·월 조합마다 시험지 구성이 달라서 고른 조합 중 하나라도 해당하면 연다.
+  //  2학년: 2006~2011 3월 공통, 6·9·11월 가/나 | 2012 3월 공통, 6·9·11월 A/B | 2013 A/B | 2014 A/B | 2015~2019 가/나 | 2020~ 단일
+  //  3학년: 2010~2012 가/나 (2010년 가형 4·6·7·9·10·11월은 선택과목 문항까지 40문항을 통째로 한 시험지로 다룬다) | 2013~2015 A/B | 2016~2020 가/나 | 2021~ 공통+선택과목
+  const KIND = (g, y, m) => {
+    if (g === 2) {
+      if (y >= 2006 && y <= 2011) return m === 3 ? null : 'gn';
+      if (y === 2012) return m === 3 ? null : 'ab';
+      if (y === 2013) return 'ab';
+      if (y === 2014) return 'ab';
+      if (y >= 2015 && y <= 2019) return 'gn';
+      return null;
+    }
+    if (g === 3) return y >= 2010 && y <= 2012 ? 'gn' : y >= 2013 && y <= 2015 ? 'ab' : y >= 2016 && y <= 2020 ? 'gn' : y >= 2021 ? 'sec' : null;
+    return null;
   };
+  const hasKind = (kind) => {
+    for (const g of [2, 3]) {
+      if (!inc('grade', g + '학년')) continue;
+      for (let y = 2006; y <= 2026; y++) {
+        if (!inc('year', y + '년')) continue;
+        for (let m = 3; m <= 11; m++) if (inc('month', m + '월') && KIND(g, y, m) === kind) return true;
+      }
+    }
+    return false;
+  };
+  const GATE = { form: () => hasKind('gn'), sec: () => hasKind('sec'), ab: () => hasKind('ab') };
   const groupTimers = {};
   // 다른 묶음의 현재 선택으로 볼 때, 이 묶음의 어떤 값에 문항이 한 개라도 있는지 (아직 안 고른 묶음은 제한 없음으로 본다)
   function availVals(k) {
@@ -71,7 +93,9 @@
     return set;
   }
   const EXTRA_MONTHS = ['4월', '7월', '10월'];         // 3학년을 골라야 나타나는 월
-  let monthExtraOn = false;
+  let monthExtraOn = false, yearExtraOn = false;
+  const YEARS_SHOWN = 9;
+  const PLUSMINUS = '<svg class="pl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.2"/><path d="M12 7.2v9.6M7.2 12h9.6" stroke-width="2.8"/></svg><svg class="mn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.2"/><path d="M7.2 12h9.6" stroke-width="2.8"/></svg>';
   let subjPreset = null;                     // null | 'all' | 'csat'  (과목: 전체 / 수능은 서로 겹쳐 선택되지 않는다)
   let yearPreset = null;                     // null | 'all' | 5 | 3  (전체 / 최근 5개년 / 최근 3개년은 서로 겹쳐 선택되지 않는다)
   function renderFilters() {
@@ -87,7 +111,7 @@
       const show = !(GATE[k] && !GATE[k]());
       clearTimeout(groupTimers[k]);
       if (!w) {
-        w = document.createElement('div'); w.className = 'collapse' + ((k === 'form' || k === 'sec' || k.startsWith('u:')) ? ' sub' : ''); w.dataset.k = k;   // 하위 분류(가형/나형, 선택과목, 과목별 단원)는 들여쓴다
+        w = document.createElement('div'); w.className = 'collapse' + ((k === 'form' || k === 'ab' || k === 'sec' || k.startsWith('u:')) ? ' sub' : ''); w.dataset.k = k;   // 하위 분류(가형/나형, 선택과목, 과목별 단원)는 들여쓴다
         const inn = document.createElement('div'); inn.className = 'collapse-in'; w.appendChild(inn); box.appendChild(w);
         if (show) w.classList.add('open');          // 처음부터 열린 채로 만들어 움직임이 없게 한다
         w._fresh = true;
@@ -105,7 +129,24 @@
       monthExtraOn = extraNow; void box.offsetWidth;
       box.querySelectorAll('.chip.cx').forEach((c) => c.classList.toggle('open', extraNow));
     }
+    if (yearExtraOn !== yearMoreOpen) {                           // 이전 연도: 다음 줄 맨 왼쪽부터 오른쪽으로 닦아내듯 열리고, 줄 칸은 서랍처럼 늘어난다
+      yearExtraOn = yearMoreOpen; void box.offsetWidth;
+      box.querySelectorAll('.cyw').forEach((w) => w.classList.toggle('open', yearMoreOpen));
+    }
+    box.querySelectorAll('.chip.yp').forEach((c) => { c.setAttribute('aria-expanded', yearMoreOpen); });
     if (moreOpen) { $('extras').innerHTML = ''; ['points', 'type'].forEach((k) => { const d = document.createElement('div'); d.appendChild(buildGroup(k)); $('extras').appendChild(d); }); }   // 닫히는 동안에는 내용을 그대로 둔다
+  }
+  const INFO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="10.4" stroke-width="2"/><circle cx="12" cy="7.5" r="1.45" fill="currentColor" stroke="none"/><path d="M12 11v6.6" stroke-width="2.5"/></svg>';
+  const INFO = {
+    form: ['2학년: 2006년 6월 - 2011년, 2015년 - 2019년', '3학년: 2010년 - 2012년, 2016년 - 2020년'],
+    ab: ['2학년: 2012년 6월 - 2014년', '3학년: 2013년 - 2015년'],
+    sec: ['3학년: 2021년 - 2026년 (공통과목 + 확률과 통계, 미적분, 기하)'],
+  };
+  function openInfo(k, label) {
+    $('infoTitle').textContent = label;
+    const ul = $('infoList'); ul.innerHTML = '';
+    INFO[k].forEach((t) => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    $('infoOverlay').classList.add('show');
   }
   const sameSet = (x, y) => x.size === y.size && [...x].every((v) => y.has(v));
   function buildGroup(k) {
@@ -118,13 +159,15 @@
       keys = [...new Set(ALL.filter((p) => p.subject === s).map((p) => p.unit))].sort((x, y) => rank(s, x) - rank(s, y));
     } else {
       const fd = fieldOf(k); label = fd[1]; f = fd[2];
-      keys = [...new Set(ALL.map(f))].filter((v) => !(k === 'form' && v === '해당 없음'));
+      keys = [...new Set(ALL.map(f))].filter((v) => !(v === '해당 없음'));
       if (k === 'subject') keys.sort((x, y) => DISP_ORDER.indexOf(x) - DISP_ORDER.indexOf(y));
       else if (k === 'type') keys.sort((x, y) => TYPE_ORDER.indexOf(x) - TYPE_ORDER.indexOf(y));
       else if (k === 'sec') keys.sort((x, y) => SEC_RANK[x] - SEC_RANK[y]);
       else keys.sort((x, y) => String(x).localeCompare(String(y), 'ko', { numeric: true }));
+      if (k === 'year') keys.reverse();                      // 연도는 최신순(2026 → 2014)
     }
     const h = document.createElement('h3'); const hl = document.createElement('span'); hl.textContent = label; h.appendChild(hl);
+    if (INFO[k]) { const ib = document.createElement('button'); ib.type = 'button'; ib.className = 'infobtn'; ib.setAttribute('aria-label', label + ' 안내'); ib.innerHTML = INFO_SVG; ib.onclick = () => openInfo(k, label); h.appendChild(ib); }
     const pill = (text, on, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'allbtn' + (on ? ' on' : ''); b.textContent = text; b.onclick = fn; h.appendChild(b); };
     if (k === 'year') {
       const allLit = yearPreset === 'all' || (yearPreset === null && isAll(k));
@@ -136,7 +179,7 @@
       const maxY = Math.max(...ALL.map((p) => p.year));      // 최근 N개년 (자료에 있는 가장 최근 연도 기준)
       [5, 3].forEach((n) => {
         const target = new Set(keys.filter((v) => parseInt(v, 10) > maxY - n));
-        const on = yearPreset === n;
+        const on = yearPreset === n || (yearPreset === null && !isAll(k) && !!filters[k] && sameSet(filters[k], target));   // 칩을 직접 눌러 같은 구성이 되어도 켜진다
         pill('최근 ' + n + '년', on, () => {
           if (on) { allOn.delete(k); delete filters[k]; yearPreset = null; }
           else {
@@ -154,9 +197,11 @@
         else { allOn.add(k); delete filters[k]; subjPreset = 'all'; }
         refresh();
       });
-      pill('수능', subjPreset === 'csat', () => {
-        if (subjPreset === 'csat') { allOn.delete(k); delete filters[k]; subjPreset = null; }
-        else { subjPreset = 'csat'; allOn.delete(k); filters[k] = new Set(['대수', '확률과 통계', '미적분Ⅰ'].filter((v) => keys.includes(v))); }
+      const csatSet = new Set(['대수', '확률과 통계', '미적분Ⅰ'].filter((v) => keys.includes(v)));
+      const csatOn = subjPreset === 'csat' || (subjPreset === null && !isAll(k) && !!filters[k] && sameSet(filters[k], csatSet));
+      pill('수능', csatOn, () => {
+        if (csatOn) { allOn.delete(k); delete filters[k]; subjPreset = null; }
+        else { subjPreset = 'csat'; allOn.delete(k); filters[k] = new Set(csatSet); }
         refresh();
       });
     } else {
@@ -166,12 +211,21 @@
     const wrap = document.createElement('div'); wrap.className = 'chips'; gp.appendChild(wrap);
     const yAv = ((k === 'year' && mode === 'unit') || k === 'points' || k === 'type') ? availVals(k) : null;
     const availKeys = k === 'month' ? keys.filter((v) => !EXTRA_MONTHS.includes(v) || inc('grade', '3학년')) : keys;
-    keys.forEach((v) => {
-      const c = chip(k, v, 0, availKeys, k === 'u:이산수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined);   // 버튼 글씨만 다르게, 문항 정보는 그대로
+    const cyIn = document.createElement('div');
+    keys.forEach((v, vi) => {
+      if (k === 'year' && vi === YEARS_SHOWN) {   // 이전 연도 펼치기/접기 (삼각형과는 별개)
+        const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'chip yp'; pb.innerHTML = PLUSMINUS;
+        pb.setAttribute('aria-label', '이전 연도 펼치기/접기'); pb.setAttribute('aria-expanded', yearMoreOpen);
+        pb.onclick = () => { yearMoreOpen = !yearMoreOpen; refresh(); };
+        wrap.appendChild(pb);
+      }
+      const c = chip(k, v, 0, availKeys, k === 'u:이산 수학' && v === '선택과 배열' ? '선택과 배열(원순열)' : undefined);   // 버튼 글씨만 다르게, 문항 정보는 그대로
       if (yAv && !yAv.has(v)) { if (c.classList.contains('on')) c.classList.add('dim'); else c.disabled = true; }   // 고른 것은 옅어지고(선택 유지), 안 고른 것은 비활성
       if (k === 'month' && EXTRA_MONTHS.includes(v)) { c.classList.add('cx'); if (monthExtraOn) c.classList.add('open'); }
-      wrap.appendChild(c);
+      if (k === 'year' && vi >= YEARS_SHOWN) { c.classList.add('cy'); c.style.setProperty('--i', vi - YEARS_SHOWN); cyIn.appendChild(c); }   // 최신 9개 연도만 먼저 보이고 나머지는 + 를 눌러야 펼쳐진다
+      else wrap.appendChild(c);
     });
+    if (cyIn.childNodes.length) { const cw = document.createElement('div'); cw.className = 'cyw' + (yearExtraOn ? ' open' : ''); const ci = document.createElement('div'); ci.className = 'cyin'; cyIn.className = 'chips'; ci.appendChild(cyIn); cw.appendChild(ci); gp.appendChild(cw); }
     if (k === 'year') { const nt = document.createElement('div'); nt.className = 'note'; nt.textContent = '※ 수능, 모의평가는 시행 연도 기준(ex. 2027학년도 수능 → 2026년)'; gp.appendChild(nt); }
     return gp;
   }
@@ -307,7 +361,7 @@
     $('btnDetail').textContent = detail ? '문항 목록 닫기' : '문항 목록 열기';
     if (!animating) { $('modes').hidden = !!mode; $('wrap').hidden = !mode; $('side').hidden = !mode; }
     $('sideTitle').textContent = mode === 'time' ? '시행 연월로 찾기' : mode === 'unit' ? '과목/단원으로 찾기' : '';
-    $('btnMore').className = moreOpen ? 'open' : ''; $('btnMore').setAttribute('aria-expanded', moreOpen);
+    $('btnMore').setAttribute('aria-expanded', moreOpen);
     $('extrasWrap').classList.toggle('open', moreOpen);
     clearTimeout(extraTimer);
     if (!moreOpen) extraTimer = setTimeout(() => { if (!moreOpen) $('extras').innerHTML = ''; }, 360);
@@ -344,7 +398,7 @@
     await wait(480);
     side.classList.remove('reveal');
   }
-  function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearPreset = null; subjPreset = null; monthExtraOn = false; }
+  function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearMoreOpen = false; yearPreset = null; subjPreset = null; monthExtraOn = false; yearExtraOn = false; }
   async function goHome() {
     if (animating) return;
     if (reduceMotion() || !mode) { resetState(); refresh(); return; }
@@ -536,12 +590,13 @@
     DISP_ORDER = [...new Set(SUBJ_ORDER.map(subjDisp))];
     SUBJ_ORDER.forEach((s) => { FIELDS.push(['u:' + s, s, (p) => (p.subject === s ? p.unit : null)]); GATE['u:' + s] = () => inc('subject', subjDisp(s)); });
     FN = Object.fromEntries(FIELDS.map((f) => [f[0], f[2]]));
-    FN.form = (p) => (p.form ? p.form + '형' : null);                           // 가형/나형: 2020년 3학년 문항만 다룬다
-    FN.sec = (p) => (p.grade === 3 && p.year >= 2021 ? p.sec : null);         // 선택과목: 2021·2022년 3학년 문항만 다룬다 (둘은 서로 병렬)
+    FN.form = (p) => (p.form === '가' || p.form === '나' ? p.form + '형' : null);
+    FN.ab = (p) => (p.form === 'A' || p.form === 'B' ? p.form + '형' : null);                           // 가형/나형: 2017~2020년 가형·나형 시험지 문항만 다룬다
+    FN.sec = (p) => (p.grade === 3 && p.year >= 2021 ? p.sec : null);         // 선택과목: 2021년 이후 3학년 문항만 다룬다
     $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
     $('btnDetail').onclick = () => { detail = !detail; refresh(); };
     $('total').style.minWidth = (Math.max(5, String(ALL.length).length) + 3) + 'ch';   // 숫자가 바뀌어도 버튼 폭이 흔들리지 않게
-    $('btnMake').onclick = make; $('btnMore').onclick = () => { moreOpen = !moreOpen; if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('pvClose').onclick = closePreview; $('pvOverlay').onclick = (e) => { if (e.target === $('pvOverlay')) closePreview(); };
+    $('btnMake').onclick = make; const toggleMore = () => { moreOpen = !moreOpen; if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('btnMore').onclick = toggleMore; $('infoX').onclick = () => $('infoOverlay').classList.remove('show'); $('infoOverlay').onclick = (e) => { if (e.target === $('infoOverlay')) $('infoOverlay').classList.remove('show'); }; $('pvClose').onclick = closePreview; $('pvOverlay').onclick = (e) => { if (e.target === $('pvOverlay')) closePreview(); };
     $('btnBack').onclick = goHome;
     $('btnForm').onclick = openForm;
     $('mOk').onclick = () => closeForm(true); $('mCancel').onclick = () => closeForm(false); $('mX').onclick = () => closeForm(false);

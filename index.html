@@ -83,6 +83,10 @@
   .chip.dim { opacity:.45; }
   .chip.cx { max-width:0; padding-left:0; padding-right:0; margin-left:-6px; border-width:0; opacity:0; overflow:hidden; visibility:hidden; pointer-events:none; white-space:nowrap; transition:max-width .32s ease, padding .32s ease, margin .32s ease, border-width .32s ease, opacity .32s ease, visibility 0s .32s; }
   .chip.cx.open { max-width:90px; padding-left:10px; padding-right:10px; margin-left:0; border-width:1px; opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
+  .infobtn { border:none; background:none; padding:0; width:1em; height:1em; flex:none; display:inline-flex; align-items:center; justify-content:center; color:var(--sub); }
+  .infobtn svg { width:100%; height:100%; display:block; }
+  .infomodal { min-width:min(86vw,320px); }
+  .infolist { margin:0; padding-left:20px; line-height:1.7; font-size:14px; }
   .chip.on { background:var(--acc); border-color:var(--acc); color:var(--onacc); }
   .sidehead { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; }
   .sidehead h2 { margin:0; font-size:16px; }
@@ -91,10 +95,24 @@
   .sidehead button { width:36px; height:32px; padding:0; border:none; background:none; display:flex; align-items:center; justify-content:center; color:var(--sub); }
   .sidehead svg { width:20px; height:20px; }
   
+  .morebar { overflow:hidden; transition:height .32s ease, opacity .32s ease; }
+  .morebar.gone { height:0 !important; opacity:0; pointer-events:none; }
   .morebar { display:flex; align-items:center; justify-content:center; gap:8px; height:28px; position:relative; }
   .morebar button { border:none; background:none; padding:0 14px; height:24px; display:flex; align-items:center; color:var(--sub); }
-  .morebar svg { width:28px; height:28px; transition:transform .15s; }
-  .morebar button.open svg { transform:rotate(180deg); }
+  .morebar svg { width:20.8px; height:20.8px; transition:transform .32s ease; }
+  #extrasWrap, #extrasWrap.open { opacity:1; }   /* 서랍처럼 높이만 열린다 */
+  .morebar button[aria-expanded=true] svg { transform:rotate(180deg); }
+  .cyw { display:grid; grid-template-rows:0fr; transition:grid-template-rows .32s ease, visibility 0s .5s; visibility:hidden; }
+  .cyw.open { grid-template-rows:1fr; visibility:visible; transition:grid-template-rows .32s ease; }
+  .cyin { overflow:hidden; min-height:0; }
+  .cyin .chips { padding-top:6px; }
+  .cyw .chip { clip-path:inset(0 100% 0 0); transition:clip-path .22s ease; }
+  .cyw.open .chip { clip-path:inset(0 0 0 0); transition:clip-path .22s ease calc(var(--i) * 28ms); }
+  .chip.yp { padding:0; width:30px; height:30px; justify-content:center; border:none; background:none; color:var(--sub); flex:none; }
+  .chip.yp svg { width:18px; height:18px; }
+  .chip.yp .mn { display:none; }
+  .chip.yp[aria-expanded=true] .mn { display:block; }
+  .chip.yp[aria-expanded=true] .pl { display:none; }
   .filters.extras { display:grid; grid-template-columns:1fr 1fr; column-gap:24px; row-gap:12px; align-items:start; position:relative; }
   .filters.extras::before { content:''; position:absolute; left:50%; top:0; bottom:12px; width:1px; background:var(--line); }
   .filters.extras > div h3 { margin-top:0; }
@@ -102,7 +120,7 @@
   /* 위에서 아래로 펼쳐지고 위로 접히면서 페이드 */
   .collapse { display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .32s ease, opacity .32s ease, visibility 0s .32s; }
   .collapse:not(.open) { visibility:hidden; }
-  .filters .collapse.sub { padding-left:calc(13px + 2pt); position:relative; }
+  .filters .collapse.sub { padding-left:calc(15px + 2pt); position:relative; }
   .filters .collapse.sub::before { content:''; position:absolute; left:4px; top:3px; bottom:24px; width:4px; border-radius:0; background:var(--line); }
   .collapse.open { grid-template-rows:1fr; opacity:1; visibility:visible; transition-delay:0s; }
   .collapse-in { overflow:hidden; min-height:0; }
@@ -184,7 +202,7 @@
 <div class="page">
   <header>
     <img class="logo lt" alt="" src="icons/logo-lt.png"><img class="logo dk" alt="" src="icons/logo-dk.png"><h1><span class="tx">MATH BANK<i class="bl"></i></span></h1>
-    <span class="meta" id="meta"><span class="tx">2026. 10. 6. updated<i class="bl"></i></span></span>
+    <span class="meta" id="meta"><span class="tx">2026. 10. 9. updated<i class="bl"></i></span></span>
     <span class="spacer"></span>
     <button id="btnForm" aria-label="문서 설정" title="문서 설정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
   </header>
@@ -218,9 +236,9 @@
   </div>
   <div class="wrap" id="wrap" hidden>
     <aside class="card side" id="side" hidden>
-      <div class="sidehead"><h2 id="sideTitle"></h2><button id="btnBack" aria-label="처음으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6L3.5 10l4 4"/><path d="M3.5 10h11.5a5 5 0 0 1 0 10H7"/></svg></button></div>
+      <div class="sidehead"><h2 id="sideTitle"></h2><button id="btnBack" aria-label="처음으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6L3.5 10l4 4"/><path d="M3.5 10h11.5a5 5 0 0 1 0 10H7"/></svg></button></div>
       <div class="filters" id="filters"></div>
-      <div class="morebar"><button id="btnMore" aria-label="배점, 문항 유형 더 보기"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 9l6 7 6-7z"/></svg></button></div>
+      <div class="morebar" id="moreBar"><button id="btnMore" aria-label="배점, 문항 유형 열기/닫기" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"><path d="M5.2 6.7h13.6L12 17.3z"/></svg></button></div>
       <div class="collapse" id="extrasWrap"><div class="collapse-in"><div class="filters extras" id="extras"></div></div></div>
       <div class="sidefoot">
         <span id="total"></span>
@@ -236,6 +254,7 @@
 
 <div class="overlay" id="pvOverlay"><div class="pvbox"><div class="pvhead"><b id="pvTitle"></b><button type="button" id="pvClose" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="pvbody" id="pvBody"></div></div></div>
 <div class="busy" id="busy"><div class="busybox"><button type="button" class="x" id="busyX" aria-label="취소"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><svg viewBox="0 0 100 100"><circle class="ringbg" cx="50" cy="50" r="42" fill="none" stroke-width="9"/><circle id="ringFg" cx="50" cy="50" r="42" fill="none" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.894" stroke-dashoffset="263.894" transform="rotate(-90 50 50)"/><text id="ringTxt" x="50" y="57" text-anchor="middle">0%</text></svg><div id="busyMsg">PDF 생성중입니다</div></div></div>
+<div class="overlay" id="infoOverlay"><div class="modal infomodal" role="dialog" aria-modal="true" aria-labelledby="infoTitle"><button class="x" id="infoX" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><h2 id="infoTitle"></h2><ul class="infolist" id="infoList"></ul></div></div>
 <div class="overlay" id="overlay">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
     <button class="x" id="mX" aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -248,6 +267,6 @@
   </div>
 </div>
 <script defer src="js/layout.js?v=af3c1310"></script>
-<script defer src="js/app.js?v=c60e0888"></script>
+<script defer src="js/app.js?v=d1013a02"></script>
 </body>
 </html>

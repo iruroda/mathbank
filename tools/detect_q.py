@@ -42,9 +42,11 @@ def fix_words(ws):
         out.append(w)
     return out
 
-def detect(path, elective=False):
+def detect(path, elective=False, dedupe=False):
     out = []          # (page, col, n, top, x0, x1, bottom)
     last = 0; section = "공통"; sections = ["공통", "확률과 통계", "미적분", "기하"]; sec_i = 0
+    pre, restart = 22, 23                  # 선택과목 문항이 다시 시작하는 번호 (2009 개정: 23, 7차: 26)
+    if elective == "old7": sections = ["공통", "미분과 적분", "확률과 통계", "이산수학"]; pre, restart = 25, 26
     with pdfplumber.open(path) as pdf:
         W, H = pdf.pages[0].width, pdf.pages[0].height
         for pi, p in enumerate(pdf.pages):
@@ -52,7 +54,7 @@ def detect(path, elective=False):
             if not g: continue
             div = g["div"]
             cols = [(max(div-336, 40), div-4), (div+4, min(div+336, p.width-20))]   # A4(폭 595)도 지원
-            words = fix_words(p.extract_words(keep_blank_chars=False))
+            words = fix_words((p.dedupe_chars(tolerance=1.5) if dedupe else p).extract_words(keep_blank_chars=False))
             # 표시 라벨 (단답형, 확인 사항 등) 위치: 이 아래 객체는 이전 문항에 포함시키지 않는다
             labels = []
             for i, w in enumerate(words):
@@ -74,8 +76,8 @@ def detect(path, elective=False):
                 good = []
                 for top, n, nb in mk:
                     exp = last+1
-                    if n == exp or (elective and last in (22, 30) and n == 23):
-                        if elective and n == 23 and last in (22, 30):
+                    if n == exp or (elective and last in (pre, 30) and n == restart):
+                        if elective and n == restart and last in (pre, 30):
                             sec_i = sec_i+1 if last == 30 else 1
                         good.append((top, n, nb)); last = n
                 lab_in_col = [t for x, t in labels if cl-5 <= x <= cr]
@@ -133,7 +135,10 @@ def attach_meta(path, res):
             p = pdf.pages[it["page"]]
             crop = p.crop((it["x0"], it["top"], it["x1"], it["bottom"]), strict=False)
             t = crop.extract_text() or ""
-            m = re.search(r'\[(.)점\]', t)
+            t = re.sub(r"[━─\s]+", " ", t).replace("[ ", "[").replace(" ]", "]").replace(" 점", "점")      # 밑줄 그림이 글자 사이에 끼어 '[3 점 ]' 로 읽히는 경우
+            m = re.search(r'\[(.)점\]', t) or re.search(r'\[\s*(.)\s*점\s*\]', t)
+            if not m:                              # '[' ']' 가 글자로 안 읽히는 PDF: 줄 끝의 'X점'
+                ms = re.findall(r'(\S)점\s*(?:\n|$)', t); m = re.match(r'(.)', ms[-1]) if ms else None
             it["pcode"] = m.group(1) if m else None
             it["type"] = "선택형" if "①" in t else "단답형"
     _fix_points(res["items"])
