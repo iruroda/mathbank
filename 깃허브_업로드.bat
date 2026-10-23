@@ -13,8 +13,18 @@ echo.
 
 where git >nul 2>nul
 if errorlevel 1 (
-  echo [ERROR] git is not installed.
-  echo   Install from https://git-scm.com/download/win then run this file again.
+  if exist "%ProgramFiles%\Git\cmd\git.exe" set "PATH=%ProgramFiles%\Git\cmd;%PATH%"
+)
+where git >nul 2>nul
+if errorlevel 1 (
+  echo [0/5] git is not installed - installing with winget ^(takes a minute^)...
+  winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements
+  if exist "%ProgramFiles%\Git\cmd\git.exe" set "PATH=%ProgramFiles%\Git\cmd;%PATH%"
+)
+where git >nul 2>nul
+if errorlevel 1 (
+  echo [ERROR] git install failed or winget is missing.
+  echo   Install by hand: https://git-scm.com/download/win  then run this file again.
   goto :fail
 )
 
@@ -40,7 +50,7 @@ git add -A
 if errorlevel 1 goto :fail
 
 echo [3/5] git commit
-git commit -m "2021 all 15 exams (562 problems), 3-7 solutions, smaller PDF output"
+git commit -m "update %date% %time:~0,5%"
 rem nothing-to-commit is not an error
 
 echo [4/5] git push  (a browser window may ask you to sign in to GitHub)
