@@ -28,6 +28,7 @@ def dd(t):
 def fix_words(ws):
     """'29' + '.' 또는 '1' + '9.' 처럼 쪼개진 문항번호 토큰을 합친다."""
     out = []; used = set()
+    ws = [dict(w, text=w["text"].lstrip("━")) if re.match(r"^━+\d{1,2}\.", w["text"]) else w for w in ws]     # 위쪽 가로선 글자('━')가 번호에 붙은 경우
     for i, w in enumerate(ws):
         if i in used: continue
         if re.fullmatch(r'\d{1,2}', w["text"]):
@@ -54,7 +55,8 @@ def detect(path, elective=False, dedupe=False):
             if not g: continue
             div = g["div"]
             cols = [(max(div-336, 40), div-4), (div+4, min(div+336, p.width-20))]   # A4(폭 595)도 지원
-            words = fix_words((p.dedupe_chars(tolerance=1.5) if dedupe else p).extract_words(keep_blank_chars=False))
+            pw = p.filter(lambda o: o.get("object_type") != "char" or o.get("text") != "━")          # 가로선 글자('━')가 번호·글자에 끼어 단어가 합쳐지는 것을 막는다
+            words = fix_words((pw.dedupe_chars(tolerance=1.5) if dedupe else pw).extract_words(keep_blank_chars=False))
             # 표시 라벨 (단답형, 확인 사항 등) 위치: 이 아래 객체는 이전 문항에 포함시키지 않는다
             labels = []
             for i, w in enumerate(words):

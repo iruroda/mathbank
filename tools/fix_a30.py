@@ -4,9 +4,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 from answers_tab import words
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def fix(eid):
-    y, g, m, f = eid.split("-"); af = f"{R}/pdf/{y}/{y}_2학년_{int(m)}월(가형)_해설.pdf"
+    y, g, m, f = eid.split("-"); af = f"{R}/pdf/{y}/{y}_{int(g)}학년_{int(m)}월(가형)_해설.pdf"
     cp = f"{R}/data/detect/{eid}.json"; q, a = json.load(open(cp, encoding="utf-8"))
-    it = [i for i in a["items"] if i["n"] == 30][0]; keep = []
+    it = a["items"][-1]; assert it["n"] == 30; keep = []
     for b in it["boxes"]:
         ws = words(af, b["page"]+1); hy = None
         inb = [w for w in ws if b["x0"]-3 <= (w[0]+w[2])/2 <= b["x1"]+3 and b["top"] <= w[1] <= b["bottom"]]

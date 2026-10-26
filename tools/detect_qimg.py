@@ -1,6 +1,7 @@
 """그림으로만 된 2단(위·아래 2칸) 문제지(2006~2008): 단마다 잉크 덩어리를 문항 영역으로 본다.
    읽는 순서는 쪽 → 왼쪽 단 위에서 아래 → 오른쪽 단 위에서 아래. 문항이 아닌 덩어리(머리글·안내문·'단답형' 안내 상자·확인사항)는 drop 에서 (쪽,단,덩어리순서)로 지정."""
-import subprocess, tempfile, glob
+import subprocess, tempfile, glob, os
+P0LO = {}      # 파일명 -> 1쪽 왼쪽 단에서 안내문 밑줄을 못 찾았을 때 문항이 시작하는 높이 비율(기본 0.36)
 import numpy as np
 from PIL import Image
 
@@ -28,7 +29,7 @@ def bands(path, gap=48):
                 lo = int(H * 0.2)
                 if ci == 0:
                     rule = [y for y in range(int(H * 0.2), int(H * 0.5)) if (im[y, x0:x1] < 170).mean() > 0.85]
-                    lo = (rule[-1] + 3) if rule else int(H * 0.36)
+                    lo = (rule[-1] + 3) if rule else int(H * P0LO.get(os.path.basename(path), 0.36))
                 ink[:lo] = False
             ys = np.where(ink)[0]; out = []
             if len(ys):
@@ -78,3 +79,19 @@ def detect_auto(path, gap=48):
     """마지막 쪽 오른쪽 단 맨 아래 덩어리(확인사항 상자)를 빼고 검출한다."""
     r, W, H = bands(path, gap)
     return detect(path, drop={(r[-1][0], r[-1][1], len(r[-1][4]) - 1)}, gap=gap)
+
+
+def detect_old7(path, gap=48):
+    """7차 가형(공통 25 + 선택 5×3 = 40문항) 그림 시험지: 오른쪽 단 맨 아래의 작은 덩어리(선택과목 안내)·마지막 확인사항을 빼고, 26번부터 선택과목 구역으로 나눈다."""
+    r, W, H = bands(path, gap)
+    drop = {(r[-1][0], r[-1][1], len(r[-1][4]) - 1)}
+    for pi, ci, x0, x1, bs in r:
+        for k, (a, b) in enumerate(bs):
+            if (ci == 1 and a >= H * 0.83 and b - a <= 70) or b - a < 5: drop.add((pi, ci, k))
+    q = detect(path, drop=drop, gap=gap)
+    for it in q["items"]:
+        if it["n"] > 25:
+            k = it["n"] - 26
+            it["sec"] = ["미분과 적분", "확률과 통계", "이산수학"][k // 5] if k < 15 else "이산수학"
+            it["n"] = 26 + k % 5
+    return q

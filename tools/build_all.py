@@ -44,10 +44,13 @@ for _y in (2010, 2011, 2012, 2013):                 # 2010~2013 2·3학년 (2학
     EXAMS += [(_y, 3, m, f) for m in (3, 4, 6, 7, 9, 10, 11) for f in (("가", "나") if _y <= 2012 else ("A", "B"))]
 for _y in (2006, 2007, 2008, 2009):                 # 2006~2009 2학년: 3월 공통, 6·9·11월 가형/나형
     EXAMS += [(_y, 2, 3)] + [(_y, 2, m, f) for m in (6, 9, 11) for f in ("가", "나")]
+# 2006~2009 3학년: 가형/나형 별도 시험지 (2006년은 7월 없음)
+for _y in (2006, 2007, 2008, 2009):
+    EXAMS += [(_y, 3, m, f) for m in ((3, 4, 6, 9, 10, 11) if _y == 2006 else (3, 4, 6, 7, 9, 10, 11)) for f in ("가", "나")]
 FORM_ID = {None: "", "가": "-ga", "나": "-na", "A": "-A", "B": "-B"}
 STEMS = json.load(open(os.path.join(ROOT, 'data/stems.json'))) if os.path.exists(os.path.join(ROOT, 'data/stems.json')) else {}
-COMBINED = {(2006, 2, 9), (2006, 2, 11), (2007, 2, 9), (2007, 2, 11), (2008, 2, 6), (2008, 2, 9), (2008, 2, 11), (2009, 2, 6), (2009, 2, 9), (2009, 2, 11), (2010, 3, 3), (2010, 3, 4), (2011, 3, 3), (2011, 3, 4), (2012, 3, 3), (2012, 3, 4)}     # 가형+나형 해설이 한 파일
-IMGQ = {(2006, 2, 9), (2006, 2, 11), (2007, 2, 6), (2007, 2, 9), (2007, 2, 11), (2008, 2, 3), (2008, 2, 6), (2008, 2, 11), (2006, 1, 9), (2006, 1, 11), (2007, 1, 3), (2007, 1, 6), (2007, 1, 9), (2007, 1, 11), (2008, 1, 3), (2008, 1, 6), (2008, 1, 9)}
+COMBINED = {(2006, 3, 3), (2006, 3, 4), (2006, 3, 10), (2006, 2, 9), (2006, 2, 11), (2007, 3, 3), (2007, 3, 4), (2007, 3, 6), (2007, 3, 10), (2008, 3, 3), (2008, 3, 4), (2008, 3, 7), (2008, 3, 10), (2009, 3, 3), (2009, 3, 4), (2009, 3, 7), (2009, 3, 10), (2007, 2, 9), (2007, 2, 11), (2008, 2, 6), (2008, 2, 9), (2008, 2, 11), (2009, 2, 6), (2009, 2, 9), (2009, 2, 11), (2010, 3, 3), (2010, 3, 4), (2011, 3, 3), (2011, 3, 4), (2012, 3, 3), (2012, 3, 4)}     # 가형+나형 해설이 한 파일
+IMGQ = {(2006, 3, 4), (2006, 3, 6), (2006, 3, 10), (2006, 3, 11), (2007, 3, 7), (2006, 2, 9), (2006, 2, 11), (2007, 2, 6), (2007, 2, 9), (2007, 2, 11), (2008, 2, 3), (2008, 2, 6), (2008, 2, 11), (2006, 1, 9), (2006, 1, 11), (2007, 1, 3), (2007, 1, 6), (2007, 1, 9), (2007, 1, 11), (2008, 1, 3), (2008, 1, 6), (2008, 1, 9), (2007, 3, 6), (2007, 3, 9), (2007, 3, 10), (2007, 3, 11), (2008, 3, 3), (2008, 3, 6), (2008, 3, 7), (2008, 3, 9), (2008, 3, 10), (2008, 3, 11), (2009, 3, 6), (2009, 3, 9)}
 REDETECT = "--redetect" in sys.argv     # 검출 결과는 data/detect/ 에 저장해 두고 재사용 (검출 코드를 고쳤을 때만 --redetect)
 
 def has_text(path):
@@ -91,6 +94,8 @@ def main():
     dup2 = json.load(open(os.path.join(ROOT, "data/dup2017_19.json"), encoding="utf-8")) if os.path.exists(os.path.join(ROOT, "data/dup2017_19.json")) else {}
     if os.path.exists(os.path.join(ROOT, "data/dup2010_13.json")): dup2.update({k: v for k, v in json.load(open(os.path.join(ROOT, "data/dup2010_13.json"), encoding="utf-8")).items() if not k.startswith("_")})
     if os.path.exists(os.path.join(ROOT, "data/dup2006_09.json")): dup2.update({k: v for k, v in json.load(open(os.path.join(ROOT, "data/dup2006_09.json"), encoding="utf-8")).items() if not k.startswith("_")})
+    if os.path.exists(os.path.join(ROOT, "data/dup2007_09_g3.json")): dup2.update({k: v for k, v in json.load(open(os.path.join(ROOT, "data/dup2007_09_g3.json"), encoding="utf-8")).items() if not k.startswith("_")})
+    if os.path.exists(os.path.join(ROOT, "data/dup2006_g3.json")): dup2.update({k: v for k, v in json.load(open(os.path.join(ROOT, "data/dup2006_g3.json"), encoding="utf-8")).items() if not k.startswith("_")})
     if os.path.exists(os.path.join(ROOT, "data/dup2014_16.json")): dup2.update({k: v for k, v in json.load(open(os.path.join(ROOT, "data/dup2014_16.json"), encoding="utf-8")).items() if not k.startswith("_")})
     _only = [x.split('=')[1] for x in sys.argv if x.startswith('--only=')]
     for ex in EXAMS:
@@ -104,12 +109,13 @@ def main():
         if os.path.exists(cp) and not REDETECT:
             q, a = json.load(open(cp, encoding="utf-8"))
         else:
-            el = (g == 3 and old) or ((year, g, form) == (2010, 3, '가') and month != 3 and 'old7')
+            el = (g == 3 and old) or ((g == 3 and 2006 <= year <= 2010 and form == '가' and month != 3) and 'old7')
             IMG1 = ((2020, 3, 11), (2011, 1, 6), (2011, 1, 9))
             q = None
             if (year, g, month) in IMGQ:                                                   # 그림으로 된 2단×2칸 문제지(2006~2008): 전용 검출기. 배점은 문항 그림을 보고 따로 적어 넣는다
                 import detect_qimg
-                q = detect_qimg.detect_auto(os.path.join(ROOT, qf), {(2007, 2, 11, '가'): {3: 30}}.get((year, g, month, form), 48))
+                detect_qimg.P0LO.update({f"2009_3학년_{_m}월({_f}형)_문제.pdf": 0.2 for _m in (6, 9) for _f in ("가", "나")})
+                q = (detect_qimg.detect_old7 if el == 'old7' else detect_qimg.detect_auto)(os.path.join(ROOT, qf), {(2007, 2, 11, '가'): {3: 30}}.get((year, g, month, form), 48))
                 for it in q["items"]: it["points"] = None
             if q is None and (year, g, month) not in IMG1 and not (year, g, month) in ((2011, 2, 6), (2010, 2, 9)):
                 q = detect_q.detect(os.path.join(ROOT, qf), elective=el, dedupe=(year <= 2009))
@@ -131,7 +137,7 @@ def main():
                 for it in q["items"]: it["type"] = "선택형" if it["n"] <= 21 else "단답형"
             a = None
             if has_text(os.path.join(ROOT, af)):
-                a = detect_a.detect(os.path.join(ROOT, af), cols={(2008, 1, 11): [(83, 420), (420, 762)]}.get((year, g, month)), elective=el, group=(1 if (form in ('나', 'B') and (year, g, month) in COMBINED) else 0), two=((year, g, month) in COMBINED))
+                a = detect_a.detect(os.path.join(ROOT, af), cols={(2008, 1, 11): [(83, 420), (420, 762)], **{(_y9, 3, _m9, '가'): [(40, 210), (210, 440), (440, 632), (632, 802)] for _y9, _m9 in ((2008, 9), (2008, 11), (2009, 6), (2009, 9))}}.get((year, g, month) if g != 3 else (year, g, month, form)), elective=el, group=(1 if (form in ('나', 'B') and (year, g, month) in COMBINED) else 0), two=((year, g, month) in COMBINED))
             want = 40 if el == "old7" else 30
             if a is None or len(a["items"]) < want - 3:       # 스캔·그림 글자 해설: OCR 로 번호 줄을 찾는다
                 import detect_a_img
