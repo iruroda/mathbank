@@ -251,8 +251,8 @@
     const to = open ? 1 : 0; if (triP === to && !triRaf) return;
     cancelAnimationFrame(triRaf); triRaf = 0;
     if (reduceMotion()) { triP = to; triDraw(to); return; }
-    const from = triP, t0 = performance.now(), D = 420;
-    const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    const from = triP, t0 = performance.now(), D = 230;
+    const ease = (x) => 1 - Math.pow(1 - x, 3);   // 누르자마자 바로 움직이기 시작하도록 처음이 빠른 곡선
     const step = (now) => { const x = Math.min(1, (now - t0) / D); triP = from + (to - from) * ease(x); triDraw(triP); triRaf = x < 1 ? requestAnimationFrame(step) : 0; };
     triRaf = requestAnimationFrame(step);
   }
@@ -623,7 +623,7 @@
     $('modeTime').onclick = () => setMode('time'); $('modeUnit').onclick = () => setMode('unit');
     $('btnDetail').onclick = () => { detail = !detail; refresh(); };
     $('total').style.minWidth = (Math.max(5, String(ALL.length).length) + 3) + 'ch';   // 숫자가 바뀌어도 버튼 폭이 흔들리지 않게
-    $('btnMake').onclick = make; const toggleMore = () => { moreOpen = !moreOpen; if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('btnMore').onclick = toggleMore; $('infoX').onclick = () => $('infoOverlay').classList.remove('show'); $('infoOverlay').onclick = (e) => { if (e.target === $('infoOverlay')) $('infoOverlay').classList.remove('show'); }; $('pvClose').onclick = closePreview; $('pvOverlay').onclick = (e) => { if (e.target === $('pvOverlay')) closePreview(); };
+    $('btnMake').onclick = make; const toggleMore = () => { moreOpen = !moreOpen; triTo(moreOpen); if (moreOpen) { allOn.add('points'); allOn.add('type'); } else { ['points', 'type'].forEach((k) => { delete filters[k]; allOn.delete(k); }); } refresh(); }; $('btnMore').onclick = toggleMore; $('infoX').onclick = () => $('infoOverlay').classList.remove('show'); $('infoOverlay').onclick = (e) => { if (e.target === $('infoOverlay')) $('infoOverlay').classList.remove('show'); }; $('pvClose').onclick = closePreview; $('pvOverlay').onclick = (e) => { if (e.target === $('pvOverlay')) closePreview(); };
     $('btnBack').onclick = goHome;
     $('btnForm').onclick = openForm;
     $('mOk').onclick = () => closeForm(true); $('mCancel').onclick = () => closeForm(false); $('mX').onclick = () => closeForm(false);
