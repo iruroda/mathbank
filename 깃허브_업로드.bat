@@ -6,7 +6,7 @@ title mathbank GitHub upload
 set REPO=https://github.com/iruroda/mathbank.git
 
 echo ==================================================
-echo  mathbank -> GitHub upload
+echo  mathbank -^> GitHub upload
 echo  folder: %cd%
 echo ==================================================
 echo.
@@ -46,7 +46,7 @@ if errorlevel 1 (
 )
 
 echo [2/5] git add
-git add -A
+git add -A --sparse 2>nul || git add -A
 if errorlevel 1 goto :fail
 
 echo [3/5] git commit
