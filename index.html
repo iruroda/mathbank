@@ -2,7 +2,6 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="google-site-verification" content="7yBTZUeCCDnbQs1EWhZnMn5975IcNAGY-ifb-crTASc" />
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MATH BANK</title>
 <link rel="icon" href="favicon.ico" sizes="any">
@@ -45,8 +44,8 @@
   button.primary { background:var(--acc); color:var(--onacc); border-color:var(--acc); font-weight:600; }
   button:disabled { opacity:.45; cursor:default; }
   .stage { position:relative; padding-top:4px; }
-  .modes { display:grid; grid-template-columns:1fr 1fr; column-gap:10px; margin:0 0 12px; position:relative; z-index:2; overflow:hidden; transition:grid-template-columns .4s ease, column-gap .4s ease; }
-  .modes button { min-width:0; overflow:hidden; white-space:nowrap; position:relative; transition:color .18s ease, opacity .45s ease, height .4s ease, border-radius .4s ease, padding .4s ease, border-width .4s ease; }
+  .modes { display:grid; grid-template-columns:1fr 1fr; column-gap:10px; margin:0 0 12px; position:relative; z-index:2; overflow:hidden; transition:grid-template-columns .28s ease, column-gap .28s ease; }
+  .modes button { min-width:0; overflow:hidden; white-space:nowrap; position:relative; transition:color .14s ease, opacity .32s ease, height .28s ease, border-radius .28s ease, padding .28s ease, border-width .28s ease; }
   .modes.go-left { grid-template-columns:1fr 0fr; column-gap:0; }
   .modes.go-right { grid-template-columns:0fr 1fr; column-gap:0; }
   .modes button.fading { color:transparent; }
@@ -56,8 +55,8 @@
   .wrap.measure * { visibility:hidden !important; }
   @keyframes fin { from { opacity:0; } to { opacity:1; } }
   @keyframes fout { from { opacity:1; } to { opacity:0; } }
-  .side.reveal > * { animation:fin .45s ease both; }
-  .wrap.fadeout > .side > *, .wrap.fadeout > #mainWrap { animation:fout .3s ease both; }
+  .side.reveal > * { animation:fin .32s ease both; }
+  .wrap.fadeout > .side > *, .wrap.fadeout > #mainWrap { animation:fout .22s ease both; }
   @media (prefers-reduced-motion: reduce) { .modes, .modes button { transition:none; } }
   .modes button { aspect-ratio:1 / 1; padding:10px; font-size:17px; font-weight:700; border-radius:14px; }
   .modes button.on { background:var(--acc); color:var(--onacc); border-color:var(--acc); }
@@ -100,15 +99,14 @@
   .morebar.gone { height:0 !important; opacity:0; pointer-events:none; }
   .morebar { display:flex; align-items:center; justify-content:center; gap:8px; height:28px; position:relative; }
   .morebar button { border:none; background:none; padding:0 14px; height:24px; display:flex; align-items:center; color:var(--sub); }
-  .morebar svg { width:20.8px; height:20.8px; transition:transform .32s ease; }
+  .morebar svg { width:20.8px; height:20.8px; }
   #extrasWrap, #extrasWrap.open { opacity:1; }   /* 서랍처럼 높이만 열린다 */
-  .morebar button[aria-expanded=true] svg { transform:rotate(180deg); }
   .cyw { display:grid; grid-template-rows:0fr; transition:grid-template-rows .32s ease, visibility 0s .5s; visibility:hidden; }
   .cyw.open { grid-template-rows:1fr; visibility:visible; transition:grid-template-rows .32s ease; }
   .cyin { overflow:hidden; min-height:0; }
   .cyin .chips { padding-top:6px; }
   .cyw .chip { clip-path:inset(0 100% 0 0); transition:clip-path .22s ease; }
-  .cyw.open .chip { clip-path:inset(0 0 0 0); transition:clip-path .22s ease calc(var(--i) * 28ms); }
+  .cyw.open .chip { clip-path:inset(0 0 0 0); transition:clip-path var(--t,.22s) linear var(--d,0s); }
   .chip.yp { padding:0; width:30px; height:30px; justify-content:center; border:none; background:none; color:var(--sub); flex:none; }
   .chip.yp svg { width:18px; height:18px; }
   .chip.yp .mn { display:none; }
@@ -239,7 +237,7 @@
     <aside class="card side" id="side" hidden>
       <div class="sidehead"><h2 id="sideTitle"></h2><button id="btnBack" aria-label="처음으로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 6L3.5 10l4 4"/><path d="M3.5 10h11.5a5 5 0 0 1 0 10H7"/></svg></button></div>
       <div class="filters" id="filters"></div>
-      <div class="morebar" id="moreBar"><button id="btnMore" aria-label="배점, 문항 유형 열기/닫기" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"><path d="M5.2 6.7h13.6L12 17.3z"/></svg></button></div>
+      <div class="morebar" id="moreBar"><button id="btnMore" aria-label="배점, 문항 유형 열기/닫기" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"><path id="moreTri" d="M5.2 6.7L18.8 6.7L12 17.3L12 17.3Z"/></svg></button></div>
       <div class="collapse" id="extrasWrap"><div class="collapse-in"><div class="filters extras" id="extras"></div></div></div>
       <div class="sidefoot">
         <span id="total"></span>

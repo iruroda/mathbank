@@ -131,6 +131,7 @@
     }
     if (yearExtraOn !== yearMoreOpen) {                           // 이전 연도: 다음 줄 맨 왼쪽부터 오른쪽으로 닦아내듯 열리고, 줄 칸은 서랍처럼 늘어난다
       yearExtraOn = yearMoreOpen; void box.offsetWidth;
+      yearSweep(box);
       box.querySelectorAll('.cyw').forEach((w) => w.classList.toggle('open', yearMoreOpen));
     }
     box.querySelectorAll('.chip.yp').forEach((c) => { c.setAttribute('aria-expanded', yearMoreOpen); });
@@ -138,9 +139,9 @@
   }
   const INFO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><circle cx="12" cy="12" r="10.4" stroke-width="2"/><circle cx="12" cy="7.5" r="1.45" fill="currentColor" stroke="none"/><path d="M12 11v6.6" stroke-width="2.5"/></svg>';
   const INFO = {
-    form: ['2학년: 2006년 6월 - 2011년, 2015년 - 2019년', '3학년: 2006년 - 2012년, 2016년 - 2020년'],
-    ab: ['2학년: 2012년 6월 - 2014년', '3학년: 2013년 - 2015년'],
-    sec: ['3학년: 2021년 - 2026년 (공통과목 + 확률과 통계, 미적분, 기하)'],
+    form: ['2학년: 2006 - 2011 (3월 제외), 2015 - 2019', '3학년: 2006 - 2012, 2016 - 2020'],
+    ab: ['2학년: 2012 - 2014 (2012는 3월 제외)', '3학년: 2013 - 2015'],
+    sec: ['3학년: 2021 - 2026 (공통과목 + 확률과 통계, 미적분, 기하)'],
   };
   function openInfo(k, label) {
     $('infoTitle').textContent = label;
@@ -228,6 +229,32 @@
     if (cyIn.childNodes.length) { const cw = document.createElement('div'); cw.className = 'cyw' + (yearExtraOn ? ' open' : ''); const ci = document.createElement('div'); ci.className = 'cyin'; cyIn.className = 'chips'; ci.appendChild(cyIn); cw.appendChild(ci); gp.appendChild(cw); }
     if (k === 'year') { const nt = document.createElement('div'); nt.className = 'note'; nt.textContent = '※ 수능, 모의평가는 시행 연도 기준(ex. 2027학년도 수능 → 2026년)'; gp.appendChild(nt); }
     return gp;
+  }
+  // 이전 연도 칩: 화면 폭에 따라 한 줄에 들어가는 개수가 다르므로, 실제 줄(offsetTop)을 재서 줄마다 왼쪽에서 오른쪽으로 한 번에 닦아내듯 나타나게 한다
+  function yearSweep(box) {
+    box.querySelectorAll('.cyw').forEach((w) => {
+      const cs = [...w.querySelectorAll('.chip.cy')]; if (!cs.length) return;
+      const rows = []; cs.forEach((c) => { const t = c.offsetTop; let r = rows.find((x) => Math.abs(x.top - t) < 6); if (!r) { r = { top: t, cs: [] }; rows.push(r); } r.cs.push(c); });
+      rows.sort((a, b) => a.top - b.top);
+      const SWEEP = 0.3, GAP = 0.09;                               // 한 줄을 훑는 시간, 줄 사이 시차(초)
+      rows.forEach((r, ri) => {
+        const L = Math.min(...r.cs.map((c) => c.offsetLeft)), W = Math.max(...r.cs.map((c) => c.offsetLeft + c.offsetWidth)) - L || 1;
+        r.cs.forEach((c) => { c.style.setProperty('--d', (ri * GAP + (c.offsetLeft - L) / W * SWEEP).toFixed(3) + 's'); c.style.setProperty('--t', Math.max(0.03, c.offsetWidth / W * SWEEP).toFixed(3) + 's'); });
+      });
+    });
+  }
+  // 배점·문항 유형 삼각형: 좁은 쪽은 넓어지고 넓은 쪽은 좁아지며 말랑하게 뒤집힌다 (네 꼭짓점을 섞어 움직임)
+  const TRI_DN = [5.2, 6.7, 18.8, 6.7, 12, 17.3, 12, 17.3], TRI_UP = [12, 6.7, 12, 6.7, 18.8, 17.3, 5.2, 17.3];   // 위·아래 변 각 두 점 (A, B, E, D)
+  let triP = 0, triRaf = 0;
+  function triDraw(t) { const p = $('moreTri'); if (!p) return; const v = TRI_DN.map((a, i) => a + (TRI_UP[i] - a) * t); p.setAttribute('d', 'M' + v[0] + ' ' + v[1] + 'L' + v[2] + ' ' + v[3] + 'L' + v[4] + ' ' + v[5] + 'L' + v[6] + ' ' + v[7] + 'Z'); }
+  function triTo(open) {
+    const to = open ? 1 : 0; if (triP === to && !triRaf) return;
+    cancelAnimationFrame(triRaf); triRaf = 0;
+    if (reduceMotion()) { triP = to; triDraw(to); return; }
+    const from = triP, t0 = performance.now(), D = 420;
+    const ease = (x) => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+    const step = (now) => { const x = Math.min(1, (now - t0) / D); triP = from + (to - from) * ease(x); triDraw(triP); triRaf = x < 1 ? requestAnimationFrame(step) : 0; };
+    triRaf = requestAnimationFrame(step);
   }
   function chip(k, v, n, allVals, label) {
     const on = isAll(k) || !!(filters[k] && filters[k].has(v));
@@ -361,7 +388,7 @@
     $('btnDetail').textContent = detail ? '문항 목록 닫기' : '문항 목록 열기';
     if (!animating) { $('modes').hidden = !!mode; $('wrap').hidden = !mode; $('side').hidden = !mode; }
     $('sideTitle').textContent = mode === 'time' ? '시행 연월로 찾기' : mode === 'unit' ? '과목/단원으로 찾기' : '';
-    $('btnMore').setAttribute('aria-expanded', moreOpen);
+    $('btnMore').setAttribute('aria-expanded', moreOpen); triTo(moreOpen);
     $('extrasWrap').classList.toggle('open', moreOpen);
     clearTimeout(extraTimer);
     if (!moreOpen) extraTimer = setTimeout(() => { if (!moreOpen) $('extras').innerHTML = ''; }, 360);
@@ -390,12 +417,12 @@
     modes.classList.add(m === 'time' ? 'go-left' : 'go-right');
     [me, other].forEach((b) => { b.style.height = H + 'px'; });
     me.style.borderRadius = '10px';
-    await wait(450);
+    await wait(320);
     // 버튼이 선택 창과 똑같은 크기로 다 커진 순간: 같은 자리에서 버튼을 치우고 선택 창을 놓고, 글씨만 서서히 나타낸다
     modes.hidden = true; modes.className = 'modes'; [me, other].forEach((b) => { b.className = ''; b.style.cssText = ''; });
     wrap.classList.remove('measure'); side.classList.add('reveal');
     animating = false; refresh();
-    await wait(480);
+    await wait(340);
     side.classList.remove('reveal');
   }
   function resetState() { mode = null; detail = false; filters = {}; allOn = new Set(); excluded = new Set(); query = ''; moreOpen = false; yearMoreOpen = false; yearPreset = null; subjPreset = null; monthExtraOn = false; yearExtraOn = false; }
@@ -407,7 +434,7 @@
     const me = $(m === 'time' ? 'modeTime' : 'modeUnit'), other = $(m === 'time' ? 'modeUnit' : 'modeTime');
     const H = side.getBoundingClientRect().height;
     wrap.classList.add('fadeout');                                   // 선택 창 글씨(와 목록)만 서서히 지운다
-    await wait(330);
+    await wait(240);
     // 빈 선택 창과 같은 크기의 버튼으로 같은 자리에서 바꿔치기
     modes.classList.add('notrans', m === 'time' ? 'go-left' : 'go-right');
     me.classList.add('fading'); other.classList.add('fading', 'gone');
@@ -420,7 +447,7 @@
     modes.classList.remove('go-left', 'go-right');
     me.classList.remove('fading'); other.classList.remove('fading', 'gone');
     [me, other].forEach((b) => { b.style.height = sq + 'px'; }); me.style.borderRadius = '';
-    await wait(450);
+    await wait(320);
     modes.className = 'modes'; [me, other].forEach((b) => { b.className = ''; b.style.cssText = ''; });
     wrap.classList.remove('fadeout');
     resetState(); animating = false; refresh();
