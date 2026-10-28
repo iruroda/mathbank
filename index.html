@@ -59,7 +59,6 @@
   @keyframes fout { from { opacity:1; } to { opacity:0; } }
   .side.reveal > * { animation:fin .32s ease both; }
   .wrap.fadeout > .side > *, .wrap.fadeout > #mainWrap { animation:fout .22s ease both; }
-  @media (prefers-reduced-motion: reduce) { .modes, .modes button { transition:none; } }
   .modes button { aspect-ratio:1 / 1; padding:10px; font-size:17px; font-weight:700; border-radius:14px; }
   .modes button.on { background:var(--acc); color:var(--onacc); border-color:var(--acc); }
   .wrap { display:flex; flex-direction:column; gap:0; }
@@ -126,7 +125,6 @@
   .collapse.open { grid-template-rows:1fr; opacity:1; visibility:visible; transition-delay:0s; }
   .collapse-in { overflow:hidden; min-height:0; }
   #main { margin-top:12px; }
-  @media (prefers-reduced-motion: reduce) { .collapse { transition:none; } }
   .busy { position:fixed; inset:0; z-index:80; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:var(--shadow); }
   .busybox .x { position:absolute; top:10px; right:10px; width:32px; height:32px; padding:0; border:none; background:none; color:var(--sub); display:flex; align-items:center; justify-content:center; }
   .busy.show { display:flex; }

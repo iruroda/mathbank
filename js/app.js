@@ -397,7 +397,7 @@
   function refresh() { renderFilters(); renderMain(); updateButtons(); }
   /* 모드 버튼 → 선택 화면: 버튼이 옆 칸까지 넓어지고 높이도 선택 창에 맞춘 뒤, 뒤에 깔린 선택 창이 보이도록 버튼이 서서히 사라진다. 뒤로 가기는 그 역순. */
   let animating = false;
-  const reduceMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduceMotion = () => false;   // OS의 '애니메이션 줄이기' 설정과 상관없이 항상 애니메이션 사용
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   async function setMode(m) {
