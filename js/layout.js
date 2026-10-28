@@ -39,7 +39,10 @@
     const colH = G.bottom - G.top, halfH = colH / 2, BAR_H = 20, PAD = 10;
     let pg = null, col = 0, used = 0;                 // used: 0=빈 단, 1=위 칸만 사용, 2=가득
     const nextCol = () => { if (col === 0) col = 1; else { pg = null; col = 0; } used = 0; };
-    const cell = G.colW / 4;
+    const LABEL_W = [38, 87, 48, 68];                 // 번호 | 연월 | 학년 | 문항번호 (합 241 = colW)
+    // 글자 폭 측정: 브라우저에서는 app.js 가 넘겨 준 측정 함수, 없으면(Node) 대략값
+    const est = (s, size, bold) => [...s].reduce((a, ch) => a + size * (/[가-힣]/.test(ch) ? (bold ? 0.97 : 0.85) : /\d/.test(ch) ? 0.62 : 0.4), 0);
+    const meas = opt.measure || est;
     problems.forEach((p, i) => {
       const ex = exams[p.exam].q, b = p.q[p.q.length - 1];   // b: 문항 본체(마지막 조각), 앞 조각은 공통 지문
       const bw = Math.max(...p.q.map((c) => c.x1 - c.x0)), bh = p.q.reduce((a, c) => a + c.b - c.t, 0), s0 = Math.min(G.colW / bw, 1);
@@ -54,14 +57,23 @@
       const x = colX(col);
       y0 += 2;
       const s = Math.min(G.colW / bw, (slotH - BAR_H - PAD) / bh, 1);
-      // 라벨: 4칸(번호 | 출제연월 | 학년 | 문제번호), 칸마다 왼쪽 정렬
+      // 라벨: 4칸(번호 | 출제연월 | 학년 | 문항번호). 칸 폭은 등간격이 아니고 연월이 가장 넓다. 칸마다 가운데 정렬.
+      // 문항번호 칸은 번호 뒤에 선택과목/중복 표시(작은 글씨)를 붙여 한 덩어리로 가운데 정렬한다.
       const sec = SEC_LABEL[p.sec] || (p.also ? '(=' + p.also.replace(/형 (\d+)번/, '$1') + ')' : '');
       const cells = [pad4(i), `${p.year}년 ${p.month}월`, `${p.grade}학년${p.form ? '(' + p.form + ')' : ''}`, `${p.n}번`];
+      let cx = x;
       cells.forEach((t, k) => {
-        pg.ops.push({ t: 'text', s: t, x: x + k * cell + 4, y: y0 + 11, size: 9.5, bold: true, align: 'left', maxW: cell - 6 });
-        if (k > 0) pg.ops.push({ t: 'line', x1: x + k * cell, y1: y0 + 2, x2: x + k * cell, y2: y0 + 14, w: 0.5 });
+        const cw = LABEL_W[k];
+        if (k > 0) pg.ops.push({ t: 'line', x1: cx, y1: y0 + 2, x2: cx, y2: y0 + 14, w: 0.5 });
+        if (k < 3 || !sec) {
+          pg.ops.push({ t: 'text', s: t, x: cx + cw / 2, y: y0 + 11, size: 9.5, bold: true, align: 'center', maxW: cw - 6 });
+        } else {
+          const w1 = meas(t, 9.5, true), w2 = meas(sec, 6.5, false), gap = 3, x1 = cx + (cw - (w1 + gap + w2)) / 2;
+          pg.ops.push({ t: 'text', s: t, x: x1, y: y0 + 11, size: 9.5, bold: true, align: 'left' });
+          pg.ops.push({ t: 'text', s: sec, x: x1 + w1 + gap, y: y0 + 11, size: 6.5, bold: false, align: 'left' });
+        }
+        cx += cw;
       });
-      if (sec) pg.ops.push({ t: 'text', s: sec, x: x + 3 * cell + 4 + (String(p.n).length * 5.4 + 11), y: y0 + 11, size: 6.5, bold: false, align: 'left', maxW: cell - 6 - (String(p.n).length * 5.4 + 11) });
       pg.ops.push({ t: 'line', x1: x, y1: y0 + 16, x2: x + G.colW, y2: y0 + 16, w: 0.6 });
       const dy = y0 + BAR_H;
       let cy = dy;

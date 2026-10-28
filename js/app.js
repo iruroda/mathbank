@@ -575,8 +575,10 @@
     try {
       await ensurePdfLib(); if (!live()) return; setProgress(0.03);
       const list = picked().sort(cmp);
+      const mc = document.createElement('canvas').getContext('2d');
+      const measure = (t, size, bold) => { mc.font = `${bold ? 'bold ' : ''}${size * 10}px ${getComputedStyle(document.body).fontFamily}`; return mc.measureText(t).width / 10; };
       const plan = Layout.buildPlan(list, DATA.exams, {
-        title: opts.title, footer: opts.footer, layout: opts.layout, solutions: opts.sol !== '0', answersOnly: opts.sol === '2',
+        measure, title: opts.title, footer: opts.footer, layout: opts.layout, solutions: opts.sol !== '0', answersOnly: opts.sol === '2',
       });
       setProgress(0.05);
       const bytes = await renderPlan(plan, (d, n) => { if (!live()) throw new Cancelled(); setProgress(0.05 + 0.9 * d / n); });
