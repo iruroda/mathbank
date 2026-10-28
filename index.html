@@ -7,8 +7,10 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="icons/favicon-64.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preload" href="fonts/SUITE-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-  :root { --font:system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; --bg:#f7f3ec; --card:#fff; --ink:#2b2418; --sub:#6b5f4e; --line:#e3d9c8; --acc:#8F6740; --acc2:#f1e7d8; --onacc:#fff; --pvbg:#ece6da; --shadow:rgba(20,30,50,.45); }
+  @font-face { font-family:"SUITE Variable"; src:url("fonts/SUITE-Variable.woff2") format("woff2"); font-weight:100 900; font-style:normal; font-display:swap; }
+  :root { --font:"SUITE Variable", system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; --bg:#f7f3ec; --card:#fff; --ink:#2b2418; --sub:#6b5f4e; --line:#e3d9c8; --acc:#8F6740; --acc2:#f1e7d8; --onacc:#fff; --pvbg:#ece6da; --shadow:rgba(20,30,50,.45); }
   @media (prefers-color-scheme: dark) { :root { --bg:#1a1612; --card:#241e18; --ink:#efe6d8; --sub:#b3a48e; --line:#3a3126; --acc:#C9A57A; --acc2:#3a2f22; --onacc:#14171d; --pvbg:#14110e; --shadow:rgba(0,0,0,.65); } }
   * { box-sizing: border-box; }
   /* 드래그(글자 선택·그림 끌기) 금지. 입력칸만 예외 */

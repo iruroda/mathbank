@@ -481,8 +481,9 @@
   }
 
   const TEXT_S = 4;   // 글자 이미지 해상도 배율
-  function textImage(op) {
+  async function textImage(op) {
     const font = `${op.italic ? 'italic ' : ''}${op.bold ? 'bold ' : ''}${op.size * TEXT_S}px ${getComputedStyle(document.body).fontFamily}`;
+    try { await document.fonts.load(font, op.s); } catch (e) { /* 폰트 로드 실패 시 대체 글꼴 */ }
     const c = document.createElement('canvas'); const g = c.getContext('2d');
     g.font = font; const w = Math.ceil(g.measureText(op.s).width) + 4;
     c.width = w; c.height = Math.ceil(op.size * 1.5 * TEXT_S);
